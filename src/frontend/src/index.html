@@ -17,7 +17,7 @@
             sizes="180x180"
             href="https://xxxx.raw.icp0.io/_/raw/apple-touch-icon.png"
         />
-        <meta name="apple-mobile-web-app-title" content="BAREBONES" />
+        <meta name="apple-mobile-web-app-title" content="ANY TOKEN DEX" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mark" content="OG" />
         <style>
@@ -32,7 +32,48 @@
                 background: #111111;
                 color: #cbcbbc;
                 font-family: Barlow, monospace;
+                font-size: larger;
             }
+
+            h1 {
+                display: flex;
+                align-items: center;
+            }
+
+            .align-middle {
+                vertical-align: middle;
+            }
+
+            img,
+            button {
+                border-radius: 5px;
+            }
+
+            #app {
+                width: 70%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            @media only screen and (max-width: 600px) {
+                #app {
+                    width: 100%;
+                }
+            }
+
+            code {
+                color: white;
+                font-family: Barlow, monospace;
+            }
+
+            button {
+                font-family: Barlow, monospace;
+                color: white;
+                background: #389097;
+                padding: 1em;
+                border: none;
+            }
+
             #loading_screen {
                 text-align: center;
                 padding-top: 15%;
@@ -42,8 +83,10 @@
     <body>
         <div id="app">
             <div id="loading_screen">
-                <h1>BAREBONES</h1>
-                LOADING...
+                <h1>ANY TOKEN</h1>
+                <h2>Decentralized Exchange</h2>
+                <h4 style="opacity: 0.4; color: red">ALPHA VERSION</h4>
+                <div style="padding-top: 15%">LOADING...</div>
             </div>
         </div>
     </body>

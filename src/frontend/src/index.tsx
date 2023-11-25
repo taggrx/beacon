@@ -1,20 +1,43 @@
-import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { ApiGenerator } from "./api";
+import { Token } from "./token";
+import { ApiGenerator, Backend } from "./api";
 
-const api = ApiGenerator(process.env.CANISTER_ID || "", undefined);
-
-const App = ({}) => {
-    const [response, setResponse] = React.useState<string | null>(null);
-    React.useEffect(() => {
-        api.query<string>("greet", "world").then(setResponse);
-    }, []);
-    return <p>{response}</p>;
+const parseHash = (): string[] => {
+    const parts = window.location.hash.replace("#", "").split("/");
+    parts.shift();
+    return parts.map(decodeURI);
 };
 
-const domRoot = document.getElementById("app");
-
-if (domRoot) {
-    const root = createRoot(domRoot);
-    root.render(<App />);
+declare global {
+    interface Window {
+        api: Backend;
+        principalId: string;
+        authClient: AuthClient;
+        e8s_per_xdr: number;
+    }
 }
+
+const root = createRoot(document.getElementById("app") as Element);
+
+const App = () => {
+    const [token] = parseHash();
+    return root.render(<Token id={token} />);
+};
+
+import { AuthClient } from "@dfinity/auth-client";
+AuthClient.create({ idleOptions: { disableIdle: true } }).then(
+    async (authClient) => {
+        window.authClient = authClient;
+        let identity;
+        if (await authClient.isAuthenticated()) {
+            identity = authClient.getIdentity();
+            if (identity)
+                window.principalId = identity.getPrincipal().toString();
+        }
+        window.api = ApiGenerator(process.env.CANISTER_ID || "", identity);
+
+        window.e8s_per_xdr = (await window.api.query<number>("params")) || -1;
+
+        App();
+    },
+);

@@ -1,5 +1,6 @@
 import { Principal } from "@dfinity/principal";
 import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
+import { mainnetMode } from "./common";
 
 export type Backend = {
     query: <T>(
@@ -32,7 +33,6 @@ export const ApiGenerator = (
     identity?: Identity,
 ): Backend => {
     const canisterId = Principal.fromText(defaultCanisterId);
-    const mainnetMode = process.env.NODE_ENV == "production";
     const options: HttpAgentOptions = { identity };
     if (mainnetMode) options.host = `https://${defaultCanisterId}.icp0.io`;
     const agent = new HttpAgent(options);
