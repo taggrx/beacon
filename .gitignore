@@ -1,0 +1,24 @@
+# Various IDEs and Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+**/*~
+
+# Mac OSX temporary files
+.DS_Store
+**/.DS_Store
+
+# dfx temporary files
+.dfx/
+
+# rust
+target/
+release-artifacts/
+
+# frontend code
+node_modules/
+dist/
+
+# e2e tests
+test-results/
+playwright-report/

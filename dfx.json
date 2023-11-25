@@ -1,0 +1,24 @@
+{
+    "canisters": {
+        "barebones": {
+            "candid": "src/backend/barebones.did",
+            "package": "barebones",
+            "type": "custom",
+            "wasm": "target/wasm32-unknown-unknown/release/barebones.wasm.gz",
+            "build": "./build.sh barebones"
+        }
+    },
+    "networks": {
+        "staging": {
+            "config": {
+                "FETCH_ROOT_KEY": true,
+                "API_HOST": "https://icp-api.io",
+                "STATIC_HOST": "https://icp0.io"
+            },
+            "providers": ["https://icp-api.io/"],
+            "type": "persistent"
+        }
+    },
+    "dfx": "0.15.1",
+    "version": 1
+}
