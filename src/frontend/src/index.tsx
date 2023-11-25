@@ -21,7 +21,13 @@ const root = createRoot(document.getElementById("app") as Element);
 
 const App = () => {
     const [token] = parseHash();
-    return root.render(<Token id={token} />);
+    if (token) return root.render(<Token id={token} />);
+    root.render(
+        <div className="text_centered">
+            <h1>AnyToken</h1>
+            <h2>Decentralized Exchange</h2>
+        </div>,
+    );
 };
 
 import { AuthClient } from "@dfinity/auth-client";

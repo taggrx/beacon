@@ -21,7 +21,7 @@ export const Token = ({ id }: { id: string }) => {
     const { symbol, fee, decimals, logo } = metadata.Ok;
     return (
         <>
-            <h1>
+            <h1 className="aligned">
                 <img
                     height="50"
                     width="50"
@@ -54,7 +54,7 @@ export const Listing = ({ id }: { id: string }) => {
             <h1>
                 Token <code>{id}</code> is not listed yet!
             </h1>
-            <p>Listing on ANY TOKEN is permissionless and costs {price}. </p>
+            <p>Listing on AnyToken is permissionless and costs {price}. </p>
             {window.principalId && subaccount && (
                 <>
                     <p>

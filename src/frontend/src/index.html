@@ -35,7 +35,7 @@
                 font-size: larger;
             }
 
-            h1 {
+            h1.aligned {
                 display: flex;
                 align-items: center;
             }
@@ -74,16 +74,19 @@
                 border: none;
             }
 
-            #loading_screen {
+            .text_centered {
                 text-align: center;
+            }
+
+            #loading_screen {
                 padding-top: 15%;
             }
         </style>
     </head>
     <body>
         <div id="app">
-            <div id="loading_screen">
-                <h1>ANY TOKEN</h1>
+            <div id="loading_screen" class="text_centered">
+                <h1>AnyToken</h1>
                 <h2>Decentralized Exchange</h2>
                 <h4 style="opacity: 0.4; color: red">ALPHA VERSION</h4>
                 <div style="padding-top: 15%">LOADING...</div>
