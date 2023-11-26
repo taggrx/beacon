@@ -21,6 +21,10 @@ pub fn main_account() -> AccountIdentifier {
     AccountIdentifier::new(&id(), &DEFAULT_SUBACCOUNT)
 }
 
+pub fn fee() -> Tokens {
+    DEFAULT_FEE
+}
+
 pub async fn transfer(
     to: AccountIdentifier,
     amount: Tokens,

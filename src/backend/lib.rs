@@ -11,10 +11,7 @@ use ic_cdk::{
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{Memo, Tokens};
-use icp::{account_balance_of_principal, principal_to_subaccount};
-use icrc1::Value;
 use order_book::{State, TokenId};
-use xdr_rate::get_xdr_in_e8s;
 
 mod assets;
 mod icp;
@@ -81,9 +78,23 @@ fn reply<T: serde::Serialize>(data: T) {
     reply_raw(serde_json::json!(data).to_string().as_bytes());
 }
 
+fn kickstart() {
+    assets::load();
+    let fetch_rate = || {
+        spawn(async {
+            if let Ok(e8s) = xdr_rate::get_xdr_in_e8s().await {
+                mutate(|state| state.e8s_per_xdr = e8s);
+            }
+        })
+    };
+    use std::time::Duration;
+    set_timer(Duration::from_secs(1), fetch_rate);
+    set_timer_interval(Duration::from_secs(15 * 60), fetch_rate);
+}
+
 #[init]
 fn init() {
-    assets::load();
+    kickstart();
 }
 
 #[pre_upgrade]
@@ -112,20 +123,12 @@ fn post_upgrade() {
             serde_cbor::from_slice(&bytes[4..4 + len]).expect("couldn't deserialize state"),
         )
     });
-    assets::load();
-    let fetch_rate = || {
-        spawn(async {
-            if let Ok(e8s) = get_xdr_in_e8s().await {
-                mutate(|state| state.e8s_per_xdr = e8s);
-            }
-        })
-    };
-    set_timer(std::time::Duration::from_secs(1), fetch_rate);
-    set_timer_interval(std::time::Duration::from_secs(60 * 60), fetch_rate);
+
+    kickstart();
 }
 
 async fn list_token_core(token: TokenId) -> Result<(), String> {
-    let balance = account_balance_of_principal(caller()).await;
+    let balance = icp::account_balance_of_principal(caller()).await;
     let listing_price = Tokens::from_e8s(read(|state| state.e8s_per_xdr * 100));
     if balance < listing_price {
         return Err(format!(
@@ -138,6 +141,7 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
         .await
         .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
 
+    use icrc1::Value;
     match (
         metadata.get("icrc1:symbol"),
         metadata.get("icrc1:fee"),
@@ -149,7 +153,7 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
                 state.add_token(
                     token,
                     symbol.clone(),
-                    *fee,
+                    *fee as u64,
                     *decimals as u32,
                     match logo {
                         Some(Value::Text(hex)) => Some(hex.clone()),
@@ -170,7 +174,7 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
         icp::revenue_account(),
         balance,
         Memo(0),
-        Some(principal_to_subaccount(&caller())),
+        Some(icp::principal_to_subaccount(&caller())),
     )
     .await
     .map_err(|err| format!("transfer failed: {}", err))?;
