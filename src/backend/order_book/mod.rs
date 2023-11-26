@@ -16,10 +16,10 @@ const TX_FEE: u64 = 15; // 0.15% per trade side
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct Order {
     owner: Principal,
-    executor: Option<Principal>,
     amount: Tokens,
     price: E8sPerToken,
-    executed: Timestamp,
+    executor: Option<Principal>,
+    executed: Option<Timestamp>,
 }
 
 impl PartialOrd for Order {
@@ -34,7 +34,7 @@ impl Ord for Order {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 struct Book {
     buyers: BTreeSet<Order>,
     sellers: BTreeSet<Order>,
@@ -88,7 +88,47 @@ impl State {
         );
     }
 
-    pub async fn sell(
+    pub fn create_order(
+        &mut self,
+        caller: Principal,
+        token: TokenId,
+        amount: Tokens,
+        price: E8sPerToken,
+        order_type: &str,
+    ) -> Result<(), String> {
+        if !self.tokens.contains_key(&token) {
+            return Err("token not listed".into());
+        }
+
+        if amount
+            > self
+                .pools
+                .get(&token)
+                .ok_or("no token found")?
+                .get(&caller)
+                .copied()
+                .unwrap_or_default()
+        {
+            return Err("funds not available".into());
+        }
+
+        let order = Order {
+            owner: caller,
+            amount,
+            price,
+            executor: None,
+            executed: None,
+        };
+        let order_book = self.orders.entry(token).or_default();
+        if order_type == "buy" {
+            order_book.buyers.insert(order);
+        } else {
+            order_book.sellers.insert(order);
+        }
+        Ok(())
+    }
+
+    pub fn sell(
         &mut self,
         seller: Principal,
         token: TokenId,
@@ -121,7 +161,9 @@ impl State {
                 break;
             }
 
-            amount = amount.checked_sub(order.amount).expect("too small amount");
+            amount = amount
+                .checked_sub(order.amount)
+                .ok_or("available funds are too small")?;
 
             trade(
                 &mut self.pools,
@@ -132,17 +174,17 @@ impl State {
                 order.amount,
                 order.amount * order.price,
                 self.revenue_account.unwrap(),
-            );
+            )?;
 
             order.executor = Some(seller);
-            order.executed = time;
+            order.executed = Some(time);
             archive.push(order);
         }
 
         Ok(())
     }
 
-    pub async fn buy(
+    pub fn buy(
         &mut self,
         buyer: Principal,
         token: TokenId,
@@ -170,7 +212,9 @@ impl State {
                 break;
             }
 
-            amount = amount.checked_sub(volume).expect("amount is too small");
+            amount = amount
+                .checked_sub(volume)
+                .ok_or("available funds are too small")?;
 
             trade(
                 &mut self.pools,
@@ -181,10 +225,10 @@ impl State {
                 order.amount,
                 volume,
                 self.revenue_account.unwrap(),
-            );
+            )?;
 
             order.executor = Some(buyer);
-            order.executed = time;
+            order.executed = Some(time);
             archive.push(order);
         }
 
@@ -201,25 +245,64 @@ fn trade(
     amount: Tokens,
     volume: E8s,
     revenue_account: Principal,
-) {
+) -> Result<(), String> {
     // adjust token pool amounts
-    let token_pool = pools.get_mut(&token).expect("no token pool found");
-    let sellers_tokens = token_pool.get_mut(&seller).expect("no tokens in pool");
+    let token_pool = pools.get_mut(&token).ok_or("no token pool found")?;
+    let sellers_tokens = token_pool.get_mut(&seller).ok_or("no tokens in pool")?;
     *sellers_tokens = sellers_tokens
         .checked_sub(amount)
-        .expect("not enough tokens");
+        .ok_or("not enough tokens")?;
     let buyers_tokens = token_pool.entry(buyer).or_insert(0);
     *buyers_tokens += amount;
 
     let fee = volume * TX_FEE / 10000;
 
     // adjust icp pool amounts
-    let buyers_icp_tokens = icp_pool.get_mut(&buyer).expect("no ICP tokens");
+    let buyers_icp_tokens = icp_pool.get_mut(&buyer).ok_or("no ICP tokens")?;
     *buyers_icp_tokens = buyers_icp_tokens
         .checked_sub(volume + fee)
-        .expect("not enough ICP tokens");
+        .ok_or("not enough ICP tokens")?;
     let sellers_icp_tokens = icp_pool.entry(buyer).or_default();
-    *sellers_icp_tokens += volume.checked_sub(fee).expect("amount smaller than fees");
+    *sellers_icp_tokens += volume.checked_sub(fee).ok_or("amount smaller than fees")?;
     let icp_fees = icp_pool.entry(revenue_account).or_default();
     *icp_fees += 2 * fee;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub fn pr(n: u8) -> Principal {
+        let v = vec![0, n];
+        Principal::from_slice(&v)
+    }
+
+    #[test]
+    fn test_selling() {
+        let mut state = State::default();
+
+        let taggr_token = pr(100);
+
+        assert_eq!(
+            state.create_order(pr(0), taggr_token, 7, 50000000, "buy"),
+            Err("token not listed".into())
+        );
+
+        state.add_token(taggr_token, "TAGGR".into(), 25, 2, None);
+
+        // buy order for 7 $TAGGR / 0.5 ICP each
+        assert!(state
+            .create_order(pr(0), taggr_token, 7, 50000000, "buy")
+            .is_ok());
+        // buy order for 16 $TAGGR / 0.3 ICP each
+        assert!(state
+            .create_order(pr(0), taggr_token, 16, 30000000, "buy")
+            .is_ok());
+        // buy order for 25 $TAGGR / 0.1 ICP each
+        assert!(state
+            .create_order(pr(0), taggr_token, 25, 10000000, "buy")
+            .is_ok());
+    }
 }
