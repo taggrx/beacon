@@ -1,3 +1,4 @@
+use icp::principal_to_subaccount;
 use serde::Serialize;
 use std::cell::RefCell;
 
@@ -11,7 +12,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{Memo, Tokens};
+use ic_ledger_types::{AccountIdentifier, Memo, Tokens, MAINNET_LEDGER_CANISTER_ID};
 use order_book::{E8s, State, TokenId};
 
 mod assets;
@@ -70,6 +71,19 @@ fn set_revenue_account(new_address: Principal) {
             state.revenue_account = Some(new_address);
         }
     })
+}
+
+#[export_name = "canister_update check_icp_deposit"]
+fn check_icp_deposit() {
+    spawn(async { reply(check_icp_deposit_core().await) });
+}
+
+#[export_name = "canister_update withdraw_icp"]
+fn withdraw_icp() {
+    spawn(async {
+        let account: AccountIdentifier = parse(&arg_data_raw());
+        reply(withdraw_icp_core(account).await);
+    });
 }
 
 #[export_name = "canister_update list_token"]
@@ -138,7 +152,7 @@ fn post_upgrade() {
 }
 
 async fn list_token_core(token: TokenId) -> Result<(), String> {
-    let balance = icp::account_balance_of_principal(caller()).await;
+    let balance = icp::account_balance(icp::user_account(caller())).await;
     let listing_price = Tokens::from_e8s(read(|state| state.e8s_per_xdr * 100));
     if balance < listing_price {
         return Err(format!(
@@ -182,7 +196,7 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
 
     icp::transfer(
         icp::revenue_account(),
-        balance,
+        listing_price - icp::fee(),
         Memo(0),
         Some(icp::principal_to_subaccount(&caller())),
     )
@@ -190,4 +204,32 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
     .map_err(|err| format!("transfer failed: {}", err))?;
 
     Ok(())
+}
+
+async fn withdraw_icp_core(account: AccountIdentifier) -> Result<u64, String> {
+    let balance = mutate(|state| state.withdraw_liquidity(caller(), MAINNET_LEDGER_CANISTER_ID))?;
+    icp::transfer(account, Tokens::from_e8s(balance), Memo(121212), None)
+        .await
+        .map(|_| balance)
+}
+
+async fn check_icp_deposit_core() -> Result<E8s, String> {
+    let user = caller();
+    let balance = icp::account_balance(icp::user_account(user)).await;
+    if balance < icp::fee() {
+        return Err(format!(
+            "deposit is smaller than the transaction fee: {} ICP",
+            balance
+        ));
+    }
+    let deposit = balance - icp::fee();
+    icp::transfer(
+        icp::main_account(),
+        deposit,
+        Memo(101010),
+        Some(principal_to_subaccount(&user)),
+    )
+    .await?;
+    mutate(|state| state.add_liquidity(user, MAINNET_LEDGER_CANISTER_ID, deposit.e8s()))?;
+    Ok(deposit.e8s())
 }

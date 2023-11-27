@@ -30,10 +30,12 @@
             body {
                 color: #cbcbbf;
                 min-height: 95vh;
+                padding: 1em;
             }
 
             body,
-            button {
+            button,
+            input {
                 background: #111111;
             }
 
@@ -65,7 +67,8 @@
             }
 
             img,
-            button {
+            button,
+            input {
                 border-radius: 5px;
             }
 
@@ -83,24 +86,31 @@
 
             code {
                 color: white;
+                word-break: break-all;
             }
 
             button,
             code,
-            body {
+            body,
+            input {
                 font-family: "JetBrains Mono", monospace;
             }
 
-            button {
+            button,
+            input {
                 color: white;
-                padding: 1em;
-                border: none;
-                border: 1px solid #389097;
-                cursor: pointer;
             }
 
-            .active {
-                background: #48a0a7;
+            button {
+                padding: 1em;
+                border: none;
+                cursor: pointer;
+                background: #087077;
+            }
+
+            .clickable {
+                color: #48a0a7;
+                cursor: pointer;
             }
 
             a {
@@ -120,21 +130,27 @@
 
             @keyframes glow {
                 0% {
-                    text-shadow: 0 0 5px #389097;
+                    text-shadow: 0 0 5px #6ac2c9;
                     opacity: 1;
                 }
                 100% {
                     text-shadow:
-                        0 0 20px #389097,
-                        0 0 30px #389097,
-                        0 0 40px #389097;
+                        0 0 20px #6ac2c9,
+                        0 0 30px #6ac2c9,
+                        0 0 40px #6ac2c9;
                     opacity: 1;
                 }
             }
 
             .logo {
                 color: #6ac2c9;
+                cursor: pointer;
                 animation: glow 3s ease-in-out infinite alternate;
+            }
+
+            input {
+                border: 1px solid #087077;
+                padding: 0.5em;
             }
 
             .right_spaced {

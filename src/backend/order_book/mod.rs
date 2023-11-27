@@ -103,19 +103,24 @@ impl State {
     }
 
     pub fn withdraw_liquidity(&mut self, caller: Principal, id: TokenId) -> Result<Tokens, String> {
-        if id == MAINNET_LEDGER_CANISTER_ID {
+        Ok(if id == MAINNET_LEDGER_CANISTER_ID {
+            let fee = icp::fee().e8s();
+            if fee > self.icp_pool.get(&caller).copied().unwrap_or_default() {
+                return Err("amount smaller than transaction fee".into());
+            }
             self.icp_pool
                 .remove(&caller)
-                .map(|tokens| tokens - icp::fee().e8s())
+                .map(|tokens| tokens.saturating_sub(fee))
         } else {
             let fee = self.tokens.get(&id).ok_or("no token found")?.fee;
-            self.pools
-                .get_mut(&id)
-                .ok_or("no token found")?
-                .remove(&caller)
-                .map(|tokens| tokens - fee)
+            let pool = self.pools.get_mut(&id).ok_or("no token found")?;
+            if fee > pool.get(&caller).copied().unwrap_or_default() {
+                return Err("amount smaller than transaction fee".into());
+            }
+            pool.remove(&caller)
+                .map(|tokens| tokens.saturating_sub(fee))
         }
-        .ok_or("nothing to withdraw".into())
+        .expect("nothing to withdraw"))
     }
 
     pub fn add_token(
@@ -369,7 +374,7 @@ mod tests {
         state.add_liquidity(pr(0), token, 222).unwrap();
         assert_eq!(
             state.withdraw_liquidity(pr(1), token),
-            Err("nothing to withdraw".into())
+            Err("amount smaller than transaction fee".into())
         );
         assert_eq!(state.withdraw_liquidity(pr(0), token), Ok(333 - 25));
 
@@ -379,7 +384,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             state.withdraw_liquidity(pr(1), MAINNET_LEDGER_CANISTER_ID),
-            Err("nothing to withdraw".into())
+            Err("amount smaller than transaction fee".into())
         );
         assert_eq!(
             state.withdraw_liquidity(pr(0), MAINNET_LEDGER_CANISTER_ID),

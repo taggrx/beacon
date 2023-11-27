@@ -40,7 +40,7 @@ pub async fn transfer(
         (TransferArgs {
             created_at_time: None,
             memo,
-            amount: amount - DEFAULT_FEE,
+            amount,
             fee: DEFAULT_FEE,
             to,
             from_subaccount: sub_account,
@@ -58,15 +58,7 @@ pub async fn transfer(
     })
 }
 
-pub async fn account_balance_of_principal(principal: Principal) -> Tokens {
-    account_balance(AccountIdentifier::new(
-        &id(),
-        &principal_to_subaccount(&principal),
-    ))
-    .await
-}
-
-async fn account_balance(account: AccountIdentifier) -> Tokens {
+pub async fn account_balance(account: AccountIdentifier) -> Tokens {
     let (balance,): (Tokens,) = ic_cdk::call(
         MAINNET_LEDGER_CANISTER_ID,
         "account_balance",
