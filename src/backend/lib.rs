@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::cell::RefCell;
 
 use candid::Principal;
@@ -11,7 +12,7 @@ use ic_cdk::{
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{Memo, Tokens};
-use order_book::{State, TokenId};
+use order_book::{E8s, State, TokenId};
 
 mod assets;
 mod icp;
@@ -43,14 +44,23 @@ fn token() {
     read(|state| reply(state.get_token(id)));
 }
 
-#[export_name = "canister_query subaccount"]
-fn subaccount() {
-    reply(icp::user_account(caller()).to_string());
+#[derive(Serialize)]
+struct Data {
+    e8s_per_xdr: u64,
+    icp_balance: E8s,
+    icp_account: String,
 }
 
 #[export_name = "canister_query params"]
 fn params() {
-    read(|state| reply(state.e8s_per_xdr));
+    let caller = caller();
+    read(|state| {
+        reply(Data {
+            e8s_per_xdr: state.e8s_per_xdr,
+            icp_balance: state.icp_balance(caller),
+            icp_account: icp::user_account(caller).to_string(),
+        })
+    });
 }
 
 #[update]

@@ -41,3 +41,19 @@ export const Button = ({
         </button>
     );
 };
+
+export const ConnectButton = ({}) => (
+    <button
+        className="active"
+        onClick={() =>
+            window.authClient.login({
+                onSuccess: () => location.reload(),
+                identityProvider: II_URL,
+                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
+                derivationOrigin: II_DERIVATION_URL,
+            })
+        }
+    >
+        CONNECT
+    </button>
+);

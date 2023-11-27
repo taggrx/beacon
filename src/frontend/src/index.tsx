@@ -13,18 +13,31 @@ declare global {
         api: Backend;
         principalId: string;
         authClient: AuthClient;
-        e8s_per_xdr: number;
+        data: { e8s_per_xdr: BigInt; icp_balance: BigInt; icp_account: string };
     }
 }
 
 const root = createRoot(document.getElementById("app") as Element);
 
 const App = () => {
-    const [token] = parseHash();
-    if (token) return root.render(<Token id={token} />);
+    const [param] = parseHash();
+    let content = null;
+
+    if (param == "icp") {
+        content = null;
+    } else {
+        content = <Token id={param} />;
+    }
+    if (content)
+        return root.render(
+            <>
+                <Header />
+                {content}
+            </>,
+        );
     root.render(
         <div className="text_centered">
-            <h1>BEACON</h1>
+            <h1 className="logo">BEACON</h1>
             <h2>
                 <s>Immutable</s> Order-Book Based Exchange
             </h2>
@@ -34,6 +47,7 @@ const App = () => {
 };
 
 import { AuthClient } from "@dfinity/auth-client";
+import { Header } from "./header";
 AuthClient.create({ idleOptions: { disableIdle: true } }).then(
     async (authClient) => {
         window.authClient = authClient;
@@ -45,8 +59,14 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         }
         window.api = ApiGenerator(process.env.CANISTER_ID || "", identity);
 
-        window.e8s_per_xdr = (await window.api.query<number>("params")) || -1;
+        const refreshBackendData = async () => {
+            console.log("Fetching backend data...");
+            window.data = await window.api.query<any>("params");
+            App();
+        };
 
-        App();
+        await refreshBackendData();
+        setTimeout(refreshBackendData, 10 * 60 * 1000);
+        window.addEventListener("popstate", App);
     },
 );

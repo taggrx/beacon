@@ -12,7 +12,7 @@ use crate::icp;
 pub type Tokens = u64;
 pub type TokenId = Principal;
 pub type E8sPerToken = u64;
-type E8s = u64;
+pub type E8s = u64;
 
 const TX_FEE: u64 = 15; // 0.15% per trade side
 
@@ -65,6 +65,10 @@ pub struct State {
 }
 
 impl State {
+    pub fn icp_balance(&self, caller: Principal) -> E8s {
+        self.icp_pool.get(&caller).copied().unwrap_or_default()
+    }
+
     pub fn get_token(&self, id: TokenId) -> Result<Metadata, String> {
         self.tokens
             .get(&id)

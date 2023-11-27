@@ -28,13 +28,31 @@
         />
         <style>
             body {
-                background: #111111;
                 color: #cbcbbf;
-                font-family: "JetBrains Mono", monospace;
-                font-size: larger;
                 min-height: 95vh;
+            }
+
+            body,
+            button {
+                background: #111111;
+            }
+
+            .column_container {
                 display: flex;
                 flex-direction: column;
+            }
+
+            .row_container {
+                display: flex;
+            }
+
+            .vcentered {
+                display: flex;
+                align-items: center;
+            }
+
+            .max_width_col {
+                flex: 1;
             }
 
             h1.aligned {
@@ -65,19 +83,28 @@
 
             code {
                 color: white;
-                font-family: Barlow, monospace;
+            }
+
+            button,
+            code,
+            body {
+                font-family: "JetBrains Mono", monospace;
             }
 
             button {
-                font-family: "JetBrains Mono", monospace;
                 color: white;
-                background: #389097;
                 padding: 1em;
                 border: none;
+                border: 1px solid #389097;
+                cursor: pointer;
+            }
+
+            .active {
+                background: #48a0a7;
             }
 
             a {
-                color: #389097;
+                color: #48a0a7;
                 text-decoration: none;
             }
 
@@ -90,12 +117,47 @@
                 margin-top: 3em;
                 margin-top: auto;
             }
+
+            @keyframes glow {
+                0% {
+                    text-shadow: 0 0 5px #389097;
+                    opacity: 1;
+                }
+                100% {
+                    text-shadow:
+                        0 0 20px #389097,
+                        0 0 30px #389097,
+                        0 0 40px #389097;
+                    opacity: 1;
+                }
+            }
+
+            .logo {
+                color: #6ac2c9;
+                animation: glow 3s ease-in-out infinite alternate;
+            }
+
+            .right_spaced {
+                margin-right: 1rem;
+            }
+
+            .right_half_spaced {
+                margin-right: 0.5rem;
+            }
+
+            .left_spaced {
+                margin-left: 1rem;
+            }
+
+            .left_half_spaced {
+                margin-left: 0.5rem;
+            }
         </style>
     </head>
-    <body>
+    <body class="column_container">
         <div id="app">
             <div class="text_centered">
-                <h1>BEACON</h1>
+                <h1 class="logo">BEACON</h1>
                 <h2><s>Immutable</s> Order-Book Based Exchange</h2>
                 <h4 style="opacity: 0.4; color: red">ALPHA VERSION</h4>
                 LOADING...
