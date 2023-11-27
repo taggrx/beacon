@@ -24,8 +24,11 @@ const App = () => {
     if (token) return root.render(<Token id={token} />);
     root.render(
         <div className="text_centered">
-            <h1>AnyToken</h1>
-            <h2>Decentralized Exchange</h2>
+            <h1>BEACON</h1>
+            <h2>
+                <s>Immutable</s> Order-Book Based Exchange
+            </h2>
+            - daily total volume - canister balance - most popular tokens
         </div>,
     );
 };

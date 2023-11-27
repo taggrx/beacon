@@ -57,6 +57,33 @@ pub fn load() {
         include_bytes!("../../dist/frontend/favicon.ico").to_vec(),
     );
 
+    let mut domains = vec!["beacondex.link", "alpha.beacondex.link"];
+    let can_domain = format!("{}.icp0.io", ic_cdk::id());
+    domains.push(&can_domain);
+    add_asset(
+        &["/.well-known/ii-alternative-origins"],
+        vec![
+            ("Content-Type".to_string(), "application/json".to_string()),
+            ("Cache-Control".to_string(), "public".to_string()),
+        ],
+        format!(
+            "{{\"alternativeOrigins\": [ {} ]}}",
+            domains
+                .iter()
+                .map(|domain| format!("\"https://{}\"", &domain))
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+        .as_bytes()
+        .to_vec(),
+    );
+
+    add_asset(
+        &["/.well-known/ic-domains"],
+        Default::default(),
+        domains.join("\n").as_bytes().to_vec(),
+    );
+
     ic_cdk::api::set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
 }
 

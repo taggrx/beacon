@@ -20,19 +20,21 @@
         <meta name="apple-mobile-web-app-title" content="ANY TOKEN DEX" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mark" content="OG" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@200&display=swap"
+            rel="stylesheet"
+        />
         <style>
-            @font-face {
-                font-family: "Barlow";
-                src: url("font-regular.woff2") format("woff2");
-                font-weight: normal;
-                font-style: normal;
-            }
-            a,
             body {
                 background: #111111;
-                color: #cbcbbc;
-                font-family: Barlow, monospace;
+                color: #cbcbbf;
+                font-family: "JetBrains Mono", monospace;
                 font-size: larger;
+                min-height: 95vh;
+                display: flex;
+                flex-direction: column;
             }
 
             h1.aligned {
@@ -67,30 +69,41 @@
             }
 
             button {
-                font-family: Barlow, monospace;
+                font-family: "JetBrains Mono", monospace;
                 color: white;
                 background: #389097;
                 padding: 1em;
                 border: none;
             }
 
+            a {
+                color: #389097;
+                text-decoration: none;
+            }
+
             .text_centered {
                 text-align: center;
             }
 
-            #loading_screen {
-                padding-top: 15%;
+            footer {
+                font-size: small;
+                margin-top: 3em;
+                margin-top: auto;
             }
         </style>
     </head>
     <body>
         <div id="app">
-            <div id="loading_screen" class="text_centered">
-                <h1>AnyToken</h1>
-                <h2>Decentralized Exchange</h2>
+            <div class="text_centered">
+                <h1>BEACON</h1>
+                <h2><s>Immutable</s> Order-Book Based Exchange</h2>
                 <h4 style="opacity: 0.4; color: red">ALPHA VERSION</h4>
-                <div style="padding-top: 15%">LOADING...</div>
+                LOADING...
             </div>
         </div>
+        <footer class="text_centered">
+            <a href="https://beacondex.link">BeaconDex.link</a> &middot;
+            <a href="https://beacondex.link">IC dashboard</a> &middot; 2023
+        </footer>
     </body>
 </html>
