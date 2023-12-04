@@ -1,3 +1,4 @@
+import { IDL, JsonValue } from "@dfinity/candid";
 import { Principal } from "@dfinity/principal";
 import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
 import { mainnetMode } from "./common";
@@ -13,6 +14,7 @@ export type Backend = {
     ) => Promise<T | null>;
 
     query_raw: (
+        canisterId: Principal,
         methodName: string,
         arg: ArrayBuffer,
     ) => Promise<ArrayBuffer | null>;
@@ -26,6 +28,15 @@ export type Backend = {
         arg4?: unknown,
         arg5?: unknown,
     ) => Promise<T | null>;
+
+    account_balance: (token: Principal, owner: Principal) => Promise<bigint>;
+
+    transfer: (
+        tokenId: Principal,
+        recipient: Principal,
+        subaccount: Uint8Array,
+        amount: bigint,
+    ) => Promise<JsonValue>;
 };
 
 export const ApiGenerator = (
@@ -45,6 +56,7 @@ export const ApiGenerator = (
         });
 
     const query_raw = async (
+        canisterId: Principal,
         methodName: string,
         arg = new ArrayBuffer(0),
     ): Promise<ArrayBuffer | null> => {
@@ -71,7 +83,7 @@ export const ApiGenerator = (
         let effParams = getEffParams([arg0, arg1, arg2, arg3, arg4]);
         const arg = Buffer.from(JSON.stringify(effParams));
 
-        const response = await query_raw(methodName, arg);
+        const response = await query_raw(canisterId, methodName, arg);
         if (!response) {
             return null;
         }
@@ -79,6 +91,7 @@ export const ApiGenerator = (
     };
 
     const call_raw = async (
+        canisterId: Principal,
         methodName: string,
         arg: ArrayBuffer,
     ): Promise<ArrayBuffer | null> => {
@@ -110,6 +123,7 @@ export const ApiGenerator = (
     ): Promise<T | null> => {
         const effParams = getEffParams([arg0, arg1, arg2, arg3, arg4, arg5]);
         const responseBytes = await call_raw(
+            canisterId,
             methodName,
             Buffer.from(JSON.stringify(effParams)),
         );
@@ -123,6 +137,61 @@ export const ApiGenerator = (
         query,
         query_raw,
         call,
+        account_balance: async (
+            tokenId: Principal,
+            principal: Principal,
+        ): Promise<bigint> => {
+            const arg = IDL.encode(
+                [IDL.Record({ owner: IDL.Principal })],
+                [{ owner: principal }],
+            );
+            const response: any = await query_raw(
+                tokenId,
+                "icrc1_balance_of",
+                arg,
+            );
+            return IDL.decode([IDL.Nat], response)[0] as unknown as bigint;
+        },
+        transfer: async (
+            tokenId: Principal,
+            recipient: Principal,
+            subaccount: Uint8Array,
+            amount: bigint,
+        ) => {
+            let resized = new Uint8Array(32);
+            resized.set(Uint8Array.from(subaccount).subarray(0, 32));
+            const to = {
+                owner: recipient,
+                subaccount: [resized],
+            };
+
+            const arg = IDL.encode(
+                [
+                    IDL.Record({
+                        to: IDL.Record({
+                            owner: IDL.Principal,
+                            subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
+                        }),
+                        amount: IDL.Nat,
+                    }),
+                ],
+                [
+                    {
+                        to,
+                        amount,
+                    },
+                ],
+            );
+            const response = await call_raw(tokenId, "icrc1_transfer", arg);
+
+            if (!response) {
+                throw new Error("Call failed");
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown })],
+                response,
+            )[0];
+        },
     };
 };
 

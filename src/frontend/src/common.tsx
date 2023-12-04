@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Result } from "./types";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
 export const mainnetMode = process.env.NODE_ENV == "production";
@@ -12,9 +11,9 @@ export const II_DERIVATION_URL = mainnetMode
     ? `https://${process.env.CANISTER_ID}.icp0.io`
     : window.location.origin;
 
-export const icp = (e8s: BigInt, decimals: number = 2) => {
-    let n = Number(e8s);
-    let base = Math.pow(10, 8);
+export const token = (amount: BigInt, decimals: number = 2) => {
+    let n = Number(amount);
+    let base = Math.pow(10, decimals);
     let v = n / base;
     return (decimals ? v : Math.floor(v)).toLocaleString(undefined, {
         minimumFractionDigits: decimals,
@@ -65,7 +64,7 @@ export const ConnectButton = ({}) => (
 export const CopyToClipboard = ({ value }: { value: string }) => {
     const [copied, setCopied] = React.useState(false);
     return (
-        <code
+        <span
             style={{ cursor: "pointer" }}
             title="Copy to clipboard"
             onClick={async () => {
@@ -74,7 +73,7 @@ export const CopyToClipboard = ({ value }: { value: string }) => {
                 setCopied(true);
             }}
         >
-            {value}{" "}
+            <code>{value} </code>
             {copied ? (
                 <>[copied!]</>
             ) : (
@@ -82,40 +81,6 @@ export const CopyToClipboard = ({ value }: { value: string }) => {
                     [<span className="clickable">copy</span>]
                 </>
             )}
-        </code>
+        </span>
     );
 };
-
-export const checkICPDeposit = async (
-    statusCallback: (arg: string) => void,
-) => {
-    let result = await window.api.call<Result<BigInt>>("check_icp_deposit");
-    if (!result) return;
-    if ("Ok" in result)
-        statusCallback(`✅ Funds deposited: ${icp(result.Ok, 8)} ICP!`);
-    else if ("Err" in result) statusCallback(`🔴 Error: ${result.Err}`);
-    await window.refreshBackendData();
-};
-
-export const withdrawICP = async (
-    withdrawalAccount: string,
-    statusCallback: (arg: string) => void,
-) => {
-    let result = await window.api.call<Result<BigInt>>(
-        "withdraw_icp",
-        hexToBytes(withdrawalAccount),
-    );
-    if (!result) return;
-    if ("Ok" in result)
-        statusCallback(`✅ Funds withdrawn: ${icp(result.Ok, 8)} ICP`);
-    else if ("Err" in result) statusCallback(`🔴 Error: ${result.Err}`);
-    await window.refreshBackendData();
-};
-
-function hexToBytes(hex: string) {
-    let bytes = [];
-    for (let i = 0; i < hex.length; i += 2) {
-        bytes.push(parseInt(hex.substr(i, 2), 16));
-    }
-    return bytes;
-}

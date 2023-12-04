@@ -44,8 +44,6 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "candid",
- "crc32fast",
- "data-encoding",
  "hex",
  "ic-cdk",
  "ic-cdk-macros",

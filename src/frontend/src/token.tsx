@@ -1,15 +1,18 @@
 import * as React from "react";
 import { Metadata, Result } from "./types";
-import { Button, Error, checkICPDeposit, icp, withdrawICP } from "./common";
+import { Error } from "./common";
+import { Listing } from "./listing";
 
 export const Token = ({ id }: { id: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
     const loadToken = async (id: string) => {
-        const result = await window.api.query<Result<Metadata>>("token", id);
-        setMetadata(result);
+        const [metadata] = await Promise.all([
+            await window.api.query<Result<Metadata>>("token", id),
+        ]);
+        setMetadata(metadata);
     };
     React.useEffect(() => {
-        loadToken(id);
+        if (id) loadToken(id);
     }, []);
 
     if (!metadata) return <Error text="something went wrong." />;
@@ -18,10 +21,10 @@ export const Token = ({ id }: { id: string }) => {
         return <Listing id={id} />;
     }
 
-    const { symbol, fee, decimals, logo } = metadata.Ok;
+    const { symbol, logo } = metadata.Ok;
     return (
         <>
-            <h1 className="aligned">
+            <h1 className="row_container vcentered">
                 <img
                     height="50"
                     width="50"
@@ -30,79 +33,6 @@ export const Token = ({ id }: { id: string }) => {
                 />
                 <code>{symbol}</code>
             </h1>
-            <h3>
-                Decimals: <code>{decimals}</code> &middot; Fee:{" "}
-                <code>{fee}</code>
-            </h3>
-        </>
-    );
-};
-
-export const Listing = ({ id }: { id: string }) => {
-    const [status, setStatus] = React.useState("");
-    const { e8s_per_xdr, icp_account } = window.data;
-    const price = <code>{icp(BigInt(Number(e8s_per_xdr) * 100), 8)} ICP</code>;
-    return (
-        <>
-            <h1>
-                Token <code>{id}</code> is not listed yet!
-            </h1>
-            <p>
-                Listing on BEACON:
-                <ul>
-                    <li>works only with ICRC1 tokens,</li>
-                    <li>is fully permissionless,</li>
-                    <li>costs {price}.</li>
-                </ul>
-            </p>
-            {window.principalId && (
-                <>
-                    <p>
-                        If you want to continue, transfer {price} to this
-                        account:
-                    </p>
-                    <blockquote>
-                        <code>{icp_account}</code>{" "}
-                    </blockquote>
-
-                    {status && <p>{status}</p>}
-
-                    <Button
-                        label="LIST TOKEN"
-                        onClick={async () => {
-                            let result = await window.api.call<Result<null>>(
-                                "list_token",
-                                id,
-                            );
-                            if (!result) {
-                                setStatus("🔴 Call failed.");
-                                return;
-                            }
-                            if ("Err" in result) {
-                                setStatus(`🔴 Error: ${result.Err}`);
-                                return;
-                            }
-                            location.reload();
-                        }}
-                    />
-
-                    <Button
-                        classNameArg="left_spaced"
-                        label="WITHDRAW FUNDS"
-                        onClick={async () => {
-                            const icpAccount = prompt(
-                                "Enter ICP account for withdrawal",
-                            );
-                            if (!icpAccount) return;
-                            await checkICPDeposit(setStatus);
-                            await withdrawICP(icpAccount, setStatus);
-                        }}
-                    />
-                </>
-            )}
-            {!window.principalId && (
-                <p>To list the token, please connect with BEACON first.</p>
-            )}
         </>
     );
 };

@@ -1,30 +1,43 @@
-import { ConnectButton, icp } from "./common";
+import * as React from "react";
+import { ConnectButton } from "./common";
+import { Wallet } from "./wallet";
 
-export const Header = ({ icpBalance }: { icpBalance: BigInt }) => (
-    <header className="row_container vcentered">
-        <h3
-            className="logo max_width_col"
-            onClick={() => (location.href = "/")}
-        >
-            BEACON
-        </h3>
-        {window.principalId && (
-            <>
-                <a href="#/icp">{icp(icpBalance, 8)}</a>
-                <span className="left_half_spaced right_spaced">ICP</span>
-            </>
-        )}
-        {window.principalId ? (
-            <button
-                onClick={() => {
-                    window.authClient.logout();
-                    location.reload();
-                }}
-            >
-                LOG OUT
-            </button>
-        ) : (
-            <ConnectButton />
-        )}
-    </header>
-);
+export const Header = ({}) => {
+    const [showWallet, setShowWallet] = React.useState(false);
+    return (
+        <>
+            <header className="row_container vcentered">
+                <h3
+                    className="logo max_width_col"
+                    onClick={() => (location.href = "/")}
+                >
+                    BEACON
+                </h3>
+                {window.principalId ? (
+                    <span
+                        className="clickable row_container vcentered"
+                        style={showWallet ? { opacity: "0.5" } : undefined}
+                        onClick={() => setShowWallet(!showWallet)}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                            style={{
+                                marginRight: "0.5em",
+                            }}
+                        >
+                            <path d="M0 3a2 2 0 0 1 2-2h13.5a.5.5 0 0 1 0 1H15v2a1 1 0 0 1 1 1v8.5a1.5 1.5 0 0 1-1.5 1.5h-12A2.5 2.5 0 0 1 0 12.5zm1 1.732V12.5A1.5 1.5 0 0 0 2.5 14h12a.5.5 0 0 0 .5-.5V5H2a1.99 1.99 0 0 1-1-.268M1 3a1 1 0 0 0 1 1h12V2H2a1 1 0 0 0-1 1" />
+                        </svg>
+                        WALLET
+                    </span>
+                ) : (
+                    <ConnectButton />
+                )}
+            </header>
+            {showWallet && window.principalId && <Wallet />}
+        </>
+    );
+};

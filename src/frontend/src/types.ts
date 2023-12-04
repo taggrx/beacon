@@ -6,9 +6,14 @@ export type Result<T> =
           ["Err"]: string;
       };
 
+export type TokenData = {
+    account: string;
+    balance: bigint;
+};
+
 export type Metadata = {
     symbol: string;
-    fee: number;
+    fee: bigint;
     decimals: number;
     logo: string;
 };
