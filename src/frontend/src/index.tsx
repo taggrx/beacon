@@ -11,6 +11,7 @@ const parseHash = (): string[] => {
 
 type Data = {
     e8s_per_xdr: bigint;
+    fee: bigint;
 };
 
 declare global {
@@ -19,6 +20,8 @@ declare global {
         principalId: Principal;
         authClient: AuthClient;
         data: Data;
+        tokenData: { [key: string]: Metadata };
+        balances: { [key: string]: bigint };
         refreshBackendData: () => Promise<void>;
     }
 }
@@ -34,7 +37,7 @@ const App = () => {
         {
             /* content = <IcpWallet />; */
         }
-    } else {
+    } else if (typeof param == "string") {
         content = <Token id={param} />;
     }
     if (content)
@@ -51,12 +54,19 @@ const App = () => {
                 <s>Immutable</s> Order-Book Based Exchange
             </h2>
             - daily total volume - canister balance - most popular tokens
+            <br />
+            <br />
+            {window.principalId && <Wallet />}
+            {!window.principalId && <ConnectButton />}
         </div>,
     );
 };
 
 import { AuthClient } from "@dfinity/auth-client";
 import { Header } from "./header";
+import { Metadata } from "./types";
+import { ConnectButton } from "./common";
+import { Wallet } from "./wallet";
 AuthClient.create({ idleOptions: { disableIdle: true } }).then(
     async (authClient) => {
         window.authClient = authClient;
@@ -69,10 +79,20 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         window.refreshBackendData = async () => {
             console.log("Fetching backend data...");
-            const [data]: any = await Promise.all([
-                await window.api.query<Data>("params"),
-            ]);
+            const data: any = await window.api.query<Data>("params");
             window.data = data;
+            window.tokenData =
+                (await window.api.query<{ [key: string]: Metadata }>(
+                    "tokens",
+                )) || {};
+            window.balances = {};
+            if (window.principalId)
+                Object.keys(window.tokenData).forEach(async (tokenId) => {
+                    window.balances[tokenId] = await window.api.account_balance(
+                        Principal.fromText(tokenId),
+                        window.principalId,
+                    );
+                });
             App();
         };
 

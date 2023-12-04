@@ -1,10 +1,13 @@
 import { Principal } from "@dfinity/principal";
 import * as React from "react";
-import { Button, CopyToClipboard, token } from "./common";
+import {
+    Button,
+    CopyToClipboard,
+    MAINNET_LEDGER_CANISTER_ID,
+    token,
+    tokenFee,
+} from "./common";
 import { Result } from "./types";
-
-const MAINNET_LEDGER_CANISTER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
-const ICP_DEFAULT_FEE = BigInt(10000);
 
 export const Listing = ({ id }: { id: string }) => {
     const [status, setStatus] = React.useState("");
@@ -45,7 +48,7 @@ export const Listing = ({ id }: { id: string }) => {
                                     process.env.CANISTER_ID || "",
                                 ),
                                 window.principalId.toUint8Array(),
-                                amount - ICP_DEFAULT_FEE,
+                                amount - tokenFee(MAINNET_LEDGER_CANISTER_ID),
                             );
                             if (!deposit_result) {
                                 setStatus("🔴 Call failed.");

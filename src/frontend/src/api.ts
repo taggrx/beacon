@@ -2,6 +2,7 @@ import { IDL, JsonValue } from "@dfinity/candid";
 import { Principal } from "@dfinity/principal";
 import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
 import { mainnetMode } from "./common";
+import { OrderType } from "./types";
 
 export type Backend = {
     query: <T>(
@@ -30,6 +31,17 @@ export type Backend = {
     ) => Promise<T | null>;
 
     account_balance: (token: Principal, owner: Principal) => Promise<bigint>;
+
+    orders: (tokenId: Principal, orderType: OrderType) => Promise<JsonValue>;
+
+    trade: (
+        tokenId: Principal,
+        amount: bigint,
+        price: bigint,
+        orderType: OrderType,
+    ) => Promise<JsonValue>;
+
+    withdraw: (tokenId: Principal) => Promise<JsonValue>;
 
     transfer: (
         tokenId: Principal,
@@ -152,6 +164,84 @@ export const ApiGenerator = (
             );
             return IDL.decode([IDL.Nat], response)[0] as unknown as bigint;
         },
+
+        orders: async (
+            tokenId: Principal,
+            orderType: OrderType,
+        ): Promise<JsonValue> => {
+            const arg = IDL.encode(
+                [IDL.Principal, IDL.Variant({ Buy: IDL.Null, Sell: IDL.Null })],
+                [tokenId, { [orderType.toString()]: null }],
+            );
+            const response = await query_raw(canisterId, "orders", arg);
+
+            if (!response) {
+                throw new Error("Call failed");
+            }
+            if ("Err" in response) {
+                throw new Error(`Error: ${response.Err}`);
+            }
+            return IDL.decode(
+                [
+                    IDL.Vec(
+                        IDL.Record({
+                            owner: IDL.Principal,
+                            amount: IDL.Nat,
+                            price: IDL.Nat,
+                        }),
+                    ),
+                ],
+                response,
+            )[0];
+        },
+
+        trade: async (
+            tokenId: Principal,
+            amount: bigint,
+            price: bigint,
+            orderType: OrderType,
+        ): Promise<JsonValue> => {
+            const arg = IDL.encode(
+                [
+                    IDL.Principal,
+                    IDL.Nat,
+                    IDL.Nat,
+                    IDL.Variant({ Buy: IDL.Null, Sell: IDL.Null }),
+                ],
+                [tokenId, amount, price, { [orderType.toString()]: null }],
+            );
+            const response = await call_raw(canisterId, "trade", arg);
+
+            if (!response) {
+                throw new Error("Call failed");
+            }
+            if ("Err" in response) {
+                throw new Error(`Error: ${response.Err}`);
+            }
+            return IDL.decode(
+                [
+                    IDL.Variant({
+                        Ok: IDL.Tuple(IDL.Nat, IDL.Bool),
+                        Err: IDL.Text,
+                    }),
+                ],
+                response,
+            )[0];
+        },
+
+        withdraw: async (tokenId: Principal) => {
+            const arg = IDL.encode([IDL.Principal], [tokenId]);
+            const response = await call_raw(canisterId, "withdraw", arg);
+
+            if (!response) {
+                throw new Error("Call failed");
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown })],
+                response,
+            )[0];
+        },
+
         transfer: async (
             tokenId: Principal,
             recipient: Principal,

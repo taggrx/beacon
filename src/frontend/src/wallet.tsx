@@ -1,44 +1,38 @@
 import * as React from "react";
 import { Button, CopyToClipboard, token } from "./common";
 import { Principal } from "@dfinity/principal";
-import { Metadata } from "./types";
 
 export const Wallet = ({}) => {
-    const [metadata, setMetadata] = React.useState<{ [key: string]: Metadata }>(
-        {},
-    );
-    const [balances, setBalances] = React.useState<{ [key: string]: bigint }>(
-        {},
-    );
     const [internalBalances, setInternalBalances] = React.useState<{
         [key: string]: bigint;
     }>({});
     const loadData = async () => {
-        let [metadata, internalBalances] = await Promise.all([
-            window.api.query<{ [key: string]: Metadata }>("tokens"),
+        let [internalBalances] = await Promise.all([
             window.api.query<{ [key: string]: bigint }>("token_balances"),
         ]);
-        setMetadata(metadata || {});
         setInternalBalances(internalBalances || {});
-        Object.keys(metadata || {}).forEach(async (tokenId) => {
-            (balances || {})[tokenId] = await window.api.account_balance(
-                Principal.fromText(tokenId),
-                window.principalId,
-            );
-            setBalances({ ...balances });
-        });
     };
 
     React.useEffect(() => {
         loadData();
     }, []);
 
+    const internalRenderedBalances = renderBalances(
+        internalBalances,
+        loadData,
+        "internal",
+    );
+
     return (
-        <div id="wallet" className="column_container">
+        <div id="wallet" className="modal column_container">
             <h3>FUNDS IN WALLET</h3>
-            {renderBalances(metadata, balances, loadData)}
-            <h3>FUNDS ON BEACON</h3>
-            {renderBalances(metadata, internalBalances, loadData)}
+            {renderBalances(window.balances, loadData)}
+            {internalRenderedBalances.length > 0 && (
+                <>
+                    <h3>FUNDS ON BEACON</h3>
+                    {internalRenderedBalances}
+                </>
+            )}
             <h3>PRINCIPAL</h3>
             <span style={{ fontSize: "small" }}>
                 <CopyToClipboard value={window.principalId.toString()} />
@@ -53,11 +47,11 @@ export const Wallet = ({}) => {
 };
 
 const renderBalances = (
-    metadata: { [key: string]: Metadata },
     balances: { [key: string]: bigint },
-    refreshCallback: () => Promise<any>,
+    callback: () => Promise<any>,
+    internal?: string,
 ) =>
-    Object.entries(metadata)
+    Object.entries(window.tokenData)
         .filter(([id]) => id in balances)
         .map(([id, data]) => (
             <BalanceLine
@@ -68,7 +62,8 @@ const renderBalances = (
                 balance={balances[id]}
                 decimals={data.decimals}
                 fee={data.fee}
-                refreshCallback={refreshCallback}
+                callback={callback}
+                internal={!!internal}
             />
         ));
 
@@ -79,7 +74,8 @@ const BalanceLine = ({
     balance,
     decimals,
     fee,
-    refreshCallback,
+    callback,
+    internal,
 }: {
     id: string;
     logo: string;
@@ -87,57 +83,109 @@ const BalanceLine = ({
     balance: bigint;
     decimals: number;
     fee: bigint;
-    refreshCallback: () => Promise<any>;
+    internal: boolean;
+    callback: () => Promise<any>;
 }) => {
+    const [status, setStatus] = React.useState("");
+    const showStatus = (msg: string) => {
+        setStatus(msg);
+        setTimeout(() => setStatus(""), 10 * 1000);
+    };
+    const callBackWithStatus = (msg: string) => {
+        showStatus(msg);
+        callback();
+    };
     return (
         <div key={id} className="row_container vcentered bottom_half_spaced">
-            <span className="row_container vcentered">
-                {logo ? (
-                    <img src={`${logo}`} width="20px" height="20px" />
-                ) : (
-                    "💎"
-                )}{" "}
-                {symbol}
-            </span>
-            <div className="max_width_col"></div>
-            <code>{token(balance, decimals)}</code>
-            <Button
-                classNameArg="left_half_spaced"
-                onClick={async () => {
-                    const recipient = prompt("Enter the withdrawal principal");
-                    if (!recipient) return;
-                    if (
-                        confirm(
-                            `Withdrawing ${token(
-                                balance,
-                                decimals,
-                            )} ${symbol} (fee: ${token(
-                                fee,
-                                decimals,
-                            )}) to\n\n${recipient}`,
-                        )
-                    ) {
-                        try {
-                            let result: any = await window.api.transfer(
-                                Principal.fromText(id),
-                                Principal.fromText(recipient),
-                                new Uint8Array(32),
-                                balance - BigInt(fee),
-                            );
-                            await refreshCallback();
-                            if ("Err" in result) {
-                                alert(`Error: ${result.Err}`);
-                                return;
-                            }
-                            if ("Ok" in result)
-                                alert(`Success! Transaction ID: ${result.Ok}`);
-                        } catch (e) {
-                            alert(e);
+            {status && <span>{status}</span>}
+            {!status && (
+                <>
+                    <span className="row_container vcentered">
+                        {logo ? (
+                            <img src={`${logo}`} width="20px" height="20px" />
+                        ) : (
+                            <span style={{ width: "20px" }}>💎</span>
+                        )}{" "}
+                        <a href={`#/${id}`}>{symbol}</a>
+                    </span>
+                    <div className="max_width_col"></div>
+                    <code>{token(balance, decimals)}</code>
+                    <Button
+                        classNameArg="left_half_spaced"
+                        onClick={() =>
+                            internal
+                                ? withdrawToWallet(
+                                      id,
+                                      decimals,
+                                      callBackWithStatus,
+                                  )
+                                : withdrawToPrincipal(
+                                      id,
+                                      fee,
+                                      balance,
+                                      decimals,
+                                      symbol,
+                                      callBackWithStatus,
+                                  )
                         }
-                    }
-                }}
-                label="WITHDRAW"
-            />
+                        label="WITHDRAW"
+                    />
+                </>
+            )}
         </div>
     );
+};
+
+const withdrawToWallet = async (
+    id: string,
+    decimals: number,
+    callback: (arg: string) => void,
+) => {
+    try {
+        let result: any = await window.api.withdraw(Principal.fromText(id));
+        if ("Err" in result) {
+            alert(`Error: ${result.Err}`);
+            return;
+        }
+        if ("Ok" in result)
+            callback(`Success! Withdrew ${token(result.Ok, decimals)} tokens.`);
+    } catch (e) {
+        alert(e);
+    }
+};
+const withdrawToPrincipal = async (
+    id: string,
+    fee: bigint,
+    balance: bigint,
+    decimals: number,
+    symbol: string,
+    callback: (arg: string) => void,
+) => {
+    const recipient = prompt("Enter the withdrawal principal");
+    if (!recipient) return;
+    if (
+        confirm(
+            `Withdrawing ${token(balance, decimals)} ${symbol} (fee: ${token(
+                fee,
+                decimals,
+            )}) to\n\n${recipient}`,
+        )
+    ) {
+        try {
+            let result: any = await window.api.transfer(
+                Principal.fromText(id),
+                Principal.fromText(recipient),
+                new Uint8Array(32),
+                BigInt(balance) - BigInt(fee),
+            );
+            if ("Err" in result) {
+                alert(`Error: ${result.Err}`);
+                return;
+            }
+            if ("Ok" in result)
+                callback(`Success! Transaction ID: ${result.Ok}`);
+        } catch (e) {
+            alert(e);
+        }
+    }
 };

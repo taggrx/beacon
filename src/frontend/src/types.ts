@@ -1,3 +1,5 @@
+import { Principal } from "@dfinity/principal";
+
 export type Result<T> =
     | {
           ["Ok"]: T;
@@ -16,4 +18,15 @@ export type Metadata = {
     fee: bigint;
     decimals: number;
     logo: string;
+};
+
+export enum OrderType {
+    Buy = "Buy",
+    Sell = "Sell",
+}
+
+export type Order = {
+    owner: Principal;
+    amount: bigint;
+    price: bigint;
 };

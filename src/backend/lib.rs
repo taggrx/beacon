@@ -14,7 +14,7 @@ use ic_cdk::{
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{Tokens as ICP, DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
-use order_book::{State, TokenId, Tokens};
+use order_book::{Order, OrderType, State, TokenId, Tokens, TX_FEE};
 
 mod assets;
 mod icrc1;
@@ -53,6 +53,7 @@ fn tokens() {
 #[derive(Serialize)]
 struct Data {
     e8s_per_xdr: u64,
+    fee: u128,
 }
 
 #[export_name = "canister_query params"]
@@ -60,6 +61,7 @@ fn params() {
     read(|state| {
         reply(Data {
             e8s_per_xdr: state.e8s_per_xdr,
+            fee: TX_FEE,
         })
     })
 }
@@ -67,6 +69,11 @@ fn params() {
 #[export_name = "canister_query token_balances"]
 fn token_balances() {
     reply(read(|state| state.token_balances(caller())));
+}
+
+#[query]
+fn orders(token: TokenId, order_type: OrderType) -> Vec<Order> {
+    read(|state| state.orders(token, order_type).cloned().collect())
 }
 
 #[update]
@@ -78,12 +85,95 @@ fn set_revenue_account(new_address: Principal) {
     })
 }
 
-#[export_name = "canister_update withdraw"]
-fn withdraw() {
-    spawn(async {
-        let (token_id, account): (Principal, Account) = parse(&arg_data_raw());
-        reply(withdraw_core(token_id, account).await);
-    });
+#[update]
+async fn close_order(
+    token: TokenId,
+    order_type: OrderType,
+    amount: u128,
+    price: Tokens,
+) -> Result<(), String> {
+    mutate(|state| state.close_order(caller(), token, amount, price, order_type))
+}
+
+#[update]
+async fn trade(
+    token: TokenId,
+    amount: u128,
+    price: Tokens,
+    order_type: OrderType,
+) -> Result<(u128, bool), String> {
+    let pool_token = if order_type.buy() {
+        MAINNET_LEDGER_CANISTER_ID
+    } else {
+        token
+    };
+    let user = caller();
+    let user_account = icrc1::user_account(user);
+
+    let required_liquidity = if order_type.buy() {
+        amount * price
+    } else {
+        amount
+    };
+
+    // lock liquidity needed
+    icrc1::transfer(
+        pool_token,
+        user_account.subaccount,
+        icrc1::main_account(),
+        required_liquidity,
+    )
+    .await
+    .map_err(|err| format!("transfer failed: {}", err))?;
+    mutate(|state| state.add_liquidity(user, pool_token, required_liquidity))?;
+
+    // match existing orders
+    let filled = mutate(|state| {
+        state.trade(
+            order_type,
+            user,
+            token,
+            amount,
+            Some(price),
+            ic_cdk::api::time(),
+        )
+    })?;
+
+    // create a rest order if the original was not filled and this was a limit order
+    if filled < amount && price > 0 {
+        mutate(|state| {
+            state.create_order(
+                user,
+                token,
+                amount.saturating_sub(filled),
+                price,
+                order_type,
+            )
+        })?;
+        return Ok((filled, true));
+    }
+
+    Ok((filled, false))
+}
+
+#[update]
+async fn withdraw(token_id: Principal) -> Result<u128, String> {
+    let user = caller();
+    let balance = mutate(|state| state.withdraw_liquidity(user, token_id))?;
+    let fee = read(|state| state.token(token_id))?.fee;
+    let amount = balance - fee;
+    icrc1::transfer(
+        token_id,
+        None,
+        Account {
+            owner: user,
+            subaccount: None,
+        },
+        amount,
+    )
+    .await
+    .map_err(|err| format!("transfer failed: {}", err))
+    .map(|_| balance)
 }
 
 #[export_name = "canister_update list_token"]
@@ -216,13 +306,4 @@ async fn register_token(token: TokenId) -> Result<(), String> {
             symbol, fee, decimals
         )),
     }
-}
-
-async fn withdraw_core(token_id: Principal, account: Account) -> Result<u128, String> {
-    let balance = mutate(|state| state.withdraw_liquidity(caller(), token_id))?;
-    let fee = read(|state| state.token(token_id))?.fee;
-    let amount = balance - fee;
-    icrc1::transfer(token_id, None, account, amount)
-        .await
-        .map(|_| balance)
 }

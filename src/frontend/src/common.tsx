@@ -1,6 +1,8 @@
 import * as React from "react";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
+export const MAINNET_LEDGER_CANISTER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+
 export const mainnetMode = process.env.NODE_ENV == "production";
 
 export const II_URL = mainnetMode
@@ -11,27 +13,32 @@ export const II_DERIVATION_URL = mainnetMode
     ? `https://${process.env.CANISTER_ID}.icp0.io`
     : window.location.origin;
 
-export const token = (amount: BigInt, decimals: number = 2) => {
+export const token = (amount: BigInt, decimals: number) => {
     let n = Number(amount);
     let base = Math.pow(10, decimals);
-    let v = n / base;
-    return (decimals ? v : Math.floor(v)).toLocaleString(undefined, {
-        minimumFractionDigits: decimals,
-    });
+    let a = Math.floor(n / base);
+    let b = n % base;
+    return `${a}.${b}`;
 };
+
+export const tokenFee = (tokenId: string) =>
+    BigInt(window.tokenData[tokenId].fee);
 
 export const Button = ({
     onClick,
     classNameArg,
+    styleArg,
     label,
 }: {
     classNameArg?: string;
     onClick: () => Promise<void>;
+    styleArg?: { [key: string]: string };
     label: string;
 }) => {
     const [loading, setLoading] = React.useState(false);
     return (
         <button
+            style={styleArg}
             className={classNameArg}
             disabled={loading}
             onClick={async () => {
