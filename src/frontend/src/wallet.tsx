@@ -90,10 +90,10 @@ const BalanceLine = ({
     refreshCallback: () => Promise<any>;
 }) => {
     return (
-        <div key={id} className="row_container vcentered">
-            <span>
+        <div key={id} className="row_container vcentered bottom_half_spaced">
+            <span className="row_container vcentered">
                 {logo ? (
-                    <img src={`${logo}`} width="16px" height="16px" />
+                    <img src={`${logo}`} width="20px" height="20px" />
                 ) : (
                     "💎"
                 )}{" "}

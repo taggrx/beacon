@@ -78,14 +78,6 @@ fn set_revenue_account(new_address: Principal) {
     })
 }
 
-#[export_name = "canister_update check_deposit"]
-fn check_deposit() {
-    spawn(async {
-        let token_id: Principal = parse(&arg_data_raw());
-        reply(check_deposit_core(token_id).await);
-    });
-}
-
 #[export_name = "canister_update withdraw"]
 fn withdraw() {
     spawn(async {
@@ -169,7 +161,7 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
     let user_account = icrc1::user_account(caller());
     let balance = icrc1::balance_of(MAINNET_LEDGER_CANISTER_ID, &user_account).await?;
     let listing_price = read(|state| state.e8s_per_xdr * 100);
-    if balance < listing_price {
+    if balance < listing_price as u128 {
         return Err(format!(
             "Balance too low! Expected: {}, found: {}.",
             listing_price, balance
@@ -184,7 +176,7 @@ async fn list_token_core(token: TokenId) -> Result<(), String> {
         icrc1::main_account(),
         // we subtract fees twice, because the user paid once already when deploying to their
         // subaccount
-        (ICP::from_e8s(listing_price) - DEFAULT_FEE - DEFAULT_FEE).e8s(),
+        (ICP::from_e8s(listing_price) - DEFAULT_FEE - DEFAULT_FEE).e8s() as u128,
     )
     .await
     .map_err(|err| format!("transfer failed: {}", err))?;
@@ -209,7 +201,7 @@ async fn register_token(token: TokenId) -> Result<(), String> {
                 state.add_token(
                     token,
                     symbol.clone(),
-                    *fee as u64,
+                    *fee as u128,
                     *decimals as u32,
                     match logo {
                         Some(Value::Text(hex)) => Some(hex.clone()),
@@ -226,30 +218,7 @@ async fn register_token(token: TokenId) -> Result<(), String> {
     }
 }
 
-async fn check_deposit_core(token_id: Principal) -> Result<Tokens, String> {
-    let user = caller();
-    let user_account = icrc1::user_account(user);
-    let balance = icrc1::balance_of(token_id, &user_account).await?;
-    let fee = read(|state| state.token(token_id))?.fee;
-    if balance < fee {
-        return Err(format!(
-            "deposit is smaller than the transaction fee: {}",
-            balance
-        ));
-    }
-    let deposit = balance - fee;
-    icrc1::transfer(
-        token_id,
-        user_account.subaccount,
-        icrc1::main_account(),
-        deposit,
-    )
-    .await?;
-    mutate(|state| state.add_liquidity(user, token_id, deposit))?;
-    Ok(deposit)
-}
-
-async fn withdraw_core(token_id: Principal, account: Account) -> Result<u64, String> {
+async fn withdraw_core(token_id: Principal, account: Account) -> Result<u128, String> {
     let balance = mutate(|state| state.withdraw_liquidity(caller(), token_id))?;
     let fee = read(|state| state.token(token_id))?.fee;
     let amount = balance - fee;

@@ -4,15 +4,15 @@ use std::{
 };
 
 use candid::Principal;
-use ic_ledger_types::{DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
+use ic_ledger_types::MAINNET_LEDGER_CANISTER_ID;
 use serde::{Deserialize, Serialize};
 
-pub type Tokens = u64;
+pub type Tokens = u128;
 pub type TokenId = Principal;
-pub type E8sPerToken = u64;
-pub type E8s = u64;
+pub type E8sPerToken = u128;
+pub type E8s = u128;
 
-const TX_FEE: u64 = 15; // 0.15% per trade side
+const TX_FEE: u128 = 25; // 0.25% per trade side
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct Order {
@@ -161,7 +161,7 @@ impl State {
             .copied()
             .unwrap_or_default();
         if buying {
-            let volume = amount * price;
+            let volume = amount * price as u128;
             let max_fee = trading_fee(volume);
             if volume + max_fee > token_balance {
                 return Err("not enough funds available for this order size".into());
@@ -182,7 +182,7 @@ impl State {
         trade_type: &str,
         trader: Principal,
         token: TokenId,
-        mut amount: u64,
+        mut amount: u128,
         limit: Option<E8sPerToken>,
         time: Timestamp,
     ) -> Result<(), String> {
@@ -346,12 +346,14 @@ fn adjust_pools(
     Ok(())
 }
 
-fn trading_fee(volume: E8s) -> E8s {
-    volume * TX_FEE / 10000
+fn trading_fee(volume: E8s) -> u128 {
+    (volume * TX_FEE / 10000) as u128
 }
 
 #[cfg(test)]
 mod tests {
+
+    use ic_ledger_types::DEFAULT_FEE;
 
     use super::*;
 
@@ -374,7 +376,7 @@ mod tests {
             MAINNET_LEDGER_CANISTER_ID,
             Metadata {
                 symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s(),
+                fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
             },
@@ -412,7 +414,7 @@ mod tests {
         );
         assert_eq!(
             state.withdraw_liquidity(pr(0), MAINNET_LEDGER_CANISTER_ID),
-            Ok((ic_ledger_types::Tokens::from_e8s(one_icp) - DEFAULT_FEE).e8s())
+            Ok((ic_ledger_types::Tokens::from_e8s(one_icp as u64) - DEFAULT_FEE).e8s() as u128)
         );
     }
 
@@ -426,7 +428,7 @@ mod tests {
             MAINNET_LEDGER_CANISTER_ID,
             Metadata {
                 symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s(),
+                fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
             },
@@ -590,7 +592,7 @@ mod tests {
             MAINNET_LEDGER_CANISTER_ID,
             Metadata {
                 symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s(),
+                fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
             },
@@ -733,7 +735,7 @@ mod tests {
             MAINNET_LEDGER_CANISTER_ID,
             Metadata {
                 symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s(),
+                fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
             },
@@ -796,7 +798,7 @@ mod tests {
             MAINNET_LEDGER_CANISTER_ID,
             Metadata {
                 symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s(),
+                fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
             },

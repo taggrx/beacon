@@ -53,7 +53,9 @@ export const Listing = ({ id }: { id: string }) => {
                             }
                             if ("Err" in deposit_result) {
                                 console.error(deposit_result.Err);
-                                setStatus(`🔴 Error: deposit failed`);
+                                setStatus(
+                                    "🔴 Error: listing failed. Please check if you deposited enough funds!",
+                                );
                                 return;
                             }
                             setStatus("Deposited ICP to Beacon...");
