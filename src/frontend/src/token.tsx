@@ -1,20 +1,13 @@
 import * as React from "react";
 import { Metadata, Order, OrderType, Result } from "./types";
 import { Principal } from "@dfinity/principal";
-import {
-    Button,
-    Error,
-    MAINNET_LEDGER_CANISTER_ID,
-    token,
-    tokenFee,
-} from "./common";
+import { Button, Error, MAINNET_LEDGER_CANISTER_ID, tokenFee } from "./common";
 import { Listing } from "./listing";
 
 export const Token = ({ id }: { id: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
     const [buyOrders, setBuyOrders] = React.useState<Order[]>([]);
     const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
-    const [showOrderMask, toggleOrderMask] = React.useState(false);
     const loadData = async (id: string) => {
         const [metadata, buyOrders, sellOrders] = await Promise.all([
             await window.api.query<Result<Metadata>>("token", id),
@@ -46,149 +39,86 @@ export const Token = ({ id }: { id: string }) => {
                     className="align-middle"
                 />
                 <code className="max_width_col">{symbol}</code>
-                <div style={{ opacity: showOrderMask ? "0.5" : undefined }}>
-                    <Button
-                        onClick={async () => toggleOrderMask(!showOrderMask)}
-                        label="NEW ORDER"
-                    />
-                </div>
             </h1>
-            {showOrderMask && <OrderMask id={id} />}
+            <BuyOrderMask id={id} symbol={symbol} />
             <OrderBook sellers={sellOrders} buyers={buyOrders} />
         </>
     );
 };
 
-const OrderMask = ({ id }: { id: string }) => {
+const BuyOrderMask = ({ id, symbol }: { id: string; symbol: string }) => {
     const [amount, setAmount] = React.useState("0.0");
     const [price, setPrice] = React.useState("");
-    const [orderType, setOrderType] = React.useState<OrderType>(OrderType.Buy);
     const [status, setStatus] = React.useState("");
 
     React.useEffect(() => {
-        setAmount("0.0");
-        setPrice("0.0");
-    }, [orderType]);
+        setStatus("");
+    }, [price, amount]);
 
+    const paymentToken = window.tokenData[MAINNET_LEDGER_CANISTER_ID];
     return (
-        <div className="column_container modal">
-            <div className="row_container vcentered bottom_half_spaced">
-                <Button
-                    classNameArg="max_width_col right_half_spaced"
-                    styleArg={{
-                        background: "red",
-                        opacity: orderType == OrderType.Buy ? "0.3" : "1",
+        <div className="column_container">
+            <h3>CREATE BUY ORDER</h3>
+            <div className="row_container vcentered bottom_half_spaced modal">
+                TOTAL
+                <input
+                    type="number"
+                    min="0"
+                    className="max_width_col"
+                    value={amount}
+                    onChange={(e) => {
+                        setAmount(e.target.value);
                     }}
-                    label="SELL"
-                    onClick={async () => setOrderType(OrderType.Sell)}
                 />
-                <Button
-                    classNameArg="max_width_col left_half_spaced"
-                    styleArg={{
-                        background: "green",
-                        opacity: orderType == OrderType.Sell ? "0.3" : "1",
+                {symbol}
+            </div>
+            <div className="row_container vcentered bottom_half_spaced modal">
+                LIMIT
+                <input
+                    type="number"
+                    placeholder="MAX PRICE TO PAY"
+                    className="max_width_col"
+                    value={price}
+                    onChange={(e) => {
+                        setPrice(e.target.value);
                     }}
-                    label="BUY"
-                    onClick={async () => setOrderType(OrderType.Buy)}
                 />
-            </div>
-            <div className="row_container vcentered bottom_half_spaced">
-                <span className="max_width_col">
-                    AMOUNT (
-                    {orderType == OrderType.Buy
-                        ? "ICP"
-                        : window.tokenData[id].symbol}
-                    ):
-                </span>
-                <div className="max_width_col row_container">
-                    <input
-                        type="number"
-                        min="0"
-                        className="max_width_col"
-                        value={amount}
-                        onChange={(e) => {
-                            setAmount(e.target.value);
-                        }}
-                    />
-                    <button
-                        className="left_half_spaced"
-                        onClick={() => {
-                            const tokenID =
-                                orderType == OrderType.Buy
-                                    ? MAINNET_LEDGER_CANISTER_ID
-                                    : id;
-                            setAmount(
-                                token(
-                                    window.balances[tokenID],
-                                    window.tokenData[tokenID].decimals,
-                                ),
-                            );
-                        }}
-                    >
-                        MAX
-                    </button>
-                </div>
-            </div>
-            <div className="row_container vcentered bottom_half_spaced">
-                <span className="max_width_col">
-                    LIMIT PRICE (
-                    {orderType == OrderType.Sell
-                        ? "ICP"
-                        : window.tokenData[id].symbol}
-                    ):
-                </span>
-                <div className="max_width_col row_container">
-                    <input
-                        type="number"
-                        min="0"
-                        className="max_width_col"
-                        value={price}
-                        placeholder={
-                            orderType == OrderType.Buy
-                                ? "MAX PRICE YOU PAY"
-                                : "LOWEST PRICE YOU ACCEPT"
-                        }
-                        onChange={(e) => setPrice(e.target.value)}
-                    />
-                </div>
+                {paymentToken.symbol}
             </div>
             {status && <span className="bottom_half_spaced">{status}</span>}
-            <Button
-                label={orderType.toString().toUpperCase()}
-                onClick={async () => {
-                    const parsedAmount = parseAmount(
-                        amount,
-                        window.tokenData[
-                            orderType == OrderType.Buy
-                                ? MAINNET_LEDGER_CANISTER_ID
-                                : id
-                        ].decimals,
-                    );
-                    if (parsedAmount == null) {
-                        setStatus(`🔴 Couldn't parse the amount "${amount}"`);
-                        return;
-                    }
-                    const parsedPrice = parseAmount(
-                        price,
-                        window.tokenData[
-                            orderType == OrderType.Buy
-                                ? id
-                                : MAINNET_LEDGER_CANISTER_ID
-                        ].decimals,
-                    );
-                    if (parsedPrice == null) {
-                        setStatus(`🔴 Couldn't parse the price "${price}"`);
-                        return;
-                    }
-                    await executeOrder(
-                        id,
-                        BigInt(parsedAmount),
-                        BigInt(parsedPrice),
-                        orderType,
-                        setStatus,
-                    );
-                }}
-            />
+            {!status && (
+                <Button
+                    styleArg={{
+                        background: "green",
+                    }}
+                    label={`${price ? "LIMIT " : "MARKET "}BUY`}
+                    onClick={async () => {
+                        const tokenDecimals = window.tokenData[id].decimals;
+                        const parsedAmount = parseAmount(amount, tokenDecimals);
+                        if (parsedAmount == null) {
+                            setStatus(
+                                `🔴 Couldn't parse the amount "${amount}"`,
+                            );
+                            return;
+                        }
+                        const parsedPrice = parseAmount(
+                            price,
+                            paymentToken.decimals,
+                        );
+                        if (parsedPrice == null) {
+                            setStatus(`🔴 Couldn't parse the price "${price}"`);
+                            return;
+                        }
+                        await executeOrder(
+                            id,
+                            BigInt(parsedAmount),
+                            BigInt(parsedPrice / Math.pow(10, tokenDecimals)),
+                            OrderType.Buy,
+                            setStatus,
+                        );
+                    }}
+                />
+            )}
         </div>
     );
 };
@@ -205,22 +135,26 @@ const executeOrder = async (
     );
     // lock funds
     statusCallback("Transferring funds to BEACON...");
+    const effAmount =
+        // We need to add fees for a second transfer from the user account into the pool
+        (orderType == OrderType.Buy ? amount * price : amount) +
+        tokenFee(tokenId.toString());
     let result: any = await window.api.transfer(
         tokenId,
         Principal.from(process.env.CANISTER_ID),
         window.principalId.toUint8Array(),
-        // We need to add fees for a second transfer from the user account into the pool
-        (orderType == OrderType.Buy ? amount * price : amount) +
-            tokenFee(tokenId.toString()),
+        effAmount,
     );
     if ("Err" in result) {
-        alert(`Error: ${JSON.stringify(result.Err)}`);
+        console.error(result.Err);
+        statusCallback("🔴 Transfer to BECAON failed.");
         return;
     }
     statusCallback("Executing your trade...");
     result = await window.api.trade(tokenId, amount, price, orderType);
     if ("Err" in result) {
-        alert(`Error: ${JSON.stringify(result.Err)}`);
+        console.error(result.Err);
+        statusCallback(`Error: ${JSON.stringify(result.Err)}`);
         return;
     }
     let [filled, orderCreated] = result.Ok;
