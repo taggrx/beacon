@@ -110,24 +110,27 @@ async fn trade(
     let user = caller();
     let user_account = icrc1::user_account(user);
 
-    let required_liquidity = if order_type.buy() {
-        amount * price
-    } else {
-        amount
-    };
+    let balance = icrc1::balance_of(pool_token, &user_account)
+        .await?
+        // subtract fee becasue this funds will be moved to BEACON pool
+        .checked_sub(read(|state| state.token(pool_token))?.fee)
+        .unwrap_or_default();
 
-    // lock liquidity needed
-    icrc1::transfer(
-        pool_token,
-        user_account.subaccount,
-        icrc1::main_account(),
-        required_liquidity,
-    )
-    .await
-    .map_err(|err| format!("transfer failed: {}", err))?;
+    if balance > 0 {
+        icrc1::transfer(
+            pool_token,
+            user_account.subaccount,
+            icrc1::main_account(),
+            balance,
+        )
+        .await
+        .map_err(|err| format!("transfer failed: {}", err))?;
+    }
 
     mutate(|state| {
-        state.add_liquidity(user, pool_token, required_liquidity)?;
+        if balance > 0 {
+            state.add_liquidity(user, pool_token, balance)?;
+        }
 
         // match existing orders
         let filled = state

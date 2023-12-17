@@ -3,7 +3,7 @@ import * as React from "react";
 import {
     Button,
     CopyToClipboard,
-    MAINNET_LEDGER_CANISTER_ID,
+    PAYMENT_TOKEN_ID,
     token,
     tokenFee,
 } from "./common";
@@ -43,12 +43,12 @@ export const Listing = ({ id }: { id: string }) => {
                         label="LIST TOKEN"
                         onClick={async () => {
                             let deposit_result: any = await window.api.transfer(
-                                Principal.fromText(MAINNET_LEDGER_CANISTER_ID),
+                                Principal.fromText(PAYMENT_TOKEN_ID),
                                 Principal.fromText(
                                     process.env.CANISTER_ID || "",
                                 ),
                                 window.principalId.toUint8Array(),
-                                amount - tokenFee(MAINNET_LEDGER_CANISTER_ID),
+                                amount - tokenFee(PAYMENT_TOKEN_ID),
                             );
                             if (!deposit_result) {
                                 setStatus("🔴 Call failed.");

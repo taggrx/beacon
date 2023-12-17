@@ -1,7 +1,7 @@
 import * as React from "react";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
-export const MAINNET_LEDGER_CANISTER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const PAYMENT_TOKEN_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
 export const mainnetMode = process.env.NODE_ENV == "production";
 
