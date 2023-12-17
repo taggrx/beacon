@@ -125,35 +125,41 @@ async fn trade(
     )
     .await
     .map_err(|err| format!("transfer failed: {}", err))?;
-    mutate(|state| state.add_liquidity(user, pool_token, required_liquidity))?;
 
-    // match existing orders
-    let filled = mutate(|state| {
-        state.trade(
-            order_type,
-            user,
-            token,
-            amount,
-            Some(price),
-            ic_cdk::api::time(),
-        )
-    })?;
+    mutate(|state| {
+        state.add_liquidity(user, pool_token, required_liquidity)?;
 
-    // create a rest order if the original was not filled and this was a limit order
-    if filled < amount && price > 0 {
-        mutate(|state| {
-            state.create_order(
+        // match existing orders
+        let filled = state
+            .trade(
+                order_type,
                 user,
                 token,
-                amount.saturating_sub(filled),
-                price,
-                order_type,
+                amount,
+                Some(price),
+                ic_cdk::api::time(),
             )
-        })?;
-        return Ok((filled, true));
-    }
+            .expect("trade failed");
 
-    Ok((filled, false))
+        // create a rest order if the original was not filled and this was a limit order
+        Ok((
+            filled,
+            if filled < amount && price > 0 {
+                state
+                    .create_order(
+                        user,
+                        token,
+                        amount.saturating_sub(filled),
+                        price,
+                        order_type,
+                    )
+                    .expect("order creation failed");
+                true
+            } else {
+                false
+            },
+        ))
+    })
 }
 
 #[update]

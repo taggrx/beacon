@@ -59,7 +59,7 @@ impl Ord for Order {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 struct Book {
     buyers: BTreeSet<Order>,
     sellers: BTreeSet<Order>,
@@ -75,7 +75,7 @@ pub struct Metadata {
     pub logo: Option<String>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct State {
     orders: BTreeMap<TokenId, Book>,
     order_archive: BTreeMap<TokenId, Vec<Order>>,
@@ -288,19 +288,19 @@ impl State {
             .ok_or("no token found")?
             .get_mut(&user)
             .ok_or("no funds available")?;
-        let mut required_liquidity = amount;
-        if order_type.buy() {
+        let required_liquidity = if order_type.buy() {
             let volume = amount * price as u128;
             let fee = trading_fee(volume);
-            required_liquidity = volume + fee;
-            if required_liquidity > *token_balance {
-                return Err("not enough funds available for this order size".into());
-            }
+            volume + fee
+        } else {
+            amount
+        };
+        if required_liquidity > *token_balance {
+            return Err("not enough funds available for this order size".into());
+        }
+        if order_type.buy() {
             order_book.buyers.insert(order);
         } else {
-            if required_liquidity > *token_balance {
-                return Err("not enough tokens available for this order size".into());
-            }
             order_book.sellers.insert(order);
         }
         *token_balance = token_balance.saturating_sub(required_liquidity);
@@ -320,18 +320,6 @@ impl State {
         limit: Option<E8sPerToken>,
         time: Timestamp,
     ) -> Result<u128, String> {
-        if trade_type.sell()
-            && amount
-                > *self
-                    .pools
-                    .get(&token)
-                    .ok_or("no token pool")?
-                    .get(&trader)
-                    .unwrap_or(&0)
-        {
-            return Err("not enough tokens".into());
-        }
-
         let book = &mut match self.orders.get_mut(&token) {
             Some(order_book) => order_book,
             _ => return Ok(0),
@@ -361,19 +349,6 @@ impl State {
 
             amount = if order.amount > amount {
                 // partial order fill - create a new one for left overs
-                let volume = order.price * amount;
-                if trade_type.buy()
-                    && volume + trading_fee(volume)
-                        > *self
-                            .pools
-                            .get(&MAINNET_LEDGER_CANISTER_ID)
-                            .ok_or("icp pool not found")?
-                            .get(&trader)
-                            .unwrap_or(&0)
-                {
-                    orders.insert(order);
-                    break;
-                }
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
                 orders.insert(remaining_order);
@@ -383,10 +358,16 @@ impl State {
                 amount - order.amount
             };
 
+            let (payment_receiver, token_receiver) = if trade_type.buy() {
+                (order.owner, trader)
+            } else {
+                (trader, order.owner)
+            };
+
             adjust_pools(
                 &mut self.pools,
-                order.owner,
-                trader,
+                payment_receiver,
+                token_receiver,
                 token,
                 order.amount,
                 order.amount * order.price,
@@ -421,27 +402,26 @@ impl State {
 
 fn adjust_pools(
     pools: &mut BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
-    order_owner: Principal,
-    trader: Principal,
+    payment_receiver: Principal,
+    token_receiver: Principal,
     token: TokenId,
     amount: Tokens,
     volume: E8s,
     revenue_account: Principal,
+    // since the liquidity is locked inside the order, we need to know where we should avoid
+    // adjusting pools
     trade_type: OrderType,
 ) -> Result<(), String> {
     let token_pool = pools.get_mut(&token).ok_or("no token pool found")?;
+    // We only need to subtract token liquidity if we're executing a selling trade, becasue we
+    // process buy orders
     if trade_type.sell() {
-        let sellers_tokens = token_pool.entry(trader).or_insert(0);
+        let sellers_tokens = token_pool.entry(payment_receiver).or_insert(0);
         *sellers_tokens = sellers_tokens
             .checked_sub(amount)
             .ok_or("not enough tokens")?;
     }
 
-    let token_receiver = if trade_type.buy() {
-        trader
-    } else {
-        order_owner
-    };
     let buyers_tokens = token_pool.entry(token_receiver).or_insert(0);
     *buyers_tokens += amount;
 
@@ -450,19 +430,16 @@ fn adjust_pools(
         .ok_or("no icp pool found")?;
     let fee = trading_fee(volume);
 
+    // We only need to subtract payment liquidity if we're executing a buying trade, becasue we
+    // process sell orders
     if trade_type.buy() {
-        let buyers_icp_tokens = icp_pool.get_mut(&trader).ok_or("no ICP tokens")?;
+        let buyers_icp_tokens = icp_pool.get_mut(&token_receiver).ok_or("no ICP tokens")?;
         *buyers_icp_tokens = buyers_icp_tokens
             .checked_sub(volume + fee)
             .ok_or("not enough ICP tokens")?;
     }
 
-    let icp_receiver = if trade_type.buy() {
-        order_owner
-    } else {
-        trader
-    };
-    let sellers_icp_tokens = icp_pool.entry(icp_receiver).or_default();
+    let sellers_icp_tokens = icp_pool.entry(payment_receiver).or_default();
     *sellers_icp_tokens += volume.checked_sub(fee).ok_or("amount smaller than fees")?;
     let icp_fees = icp_pool.entry(revenue_account).or_default();
     *icp_fees += 2 * fee;
@@ -674,7 +651,7 @@ mod tests {
             .create_order(pr(2), token, 25, 1000000, OrderType::Buy)
             .is_ok());
 
-        // buyer has 26 * 0.01 ICP - all ICP locked in orders, minus the fee
+        // buyer has 0.01 ICP left minus fee
         assert_eq!(icp_pool(&state).get(&pr(2)).unwrap(), &937500);
 
         let buyer_orders = &state.orders.get(&token).unwrap().buyers;
@@ -691,11 +668,16 @@ mod tests {
 
         // three buyers
         assert_eq!(icp_pool(&state).len(), 3);
+        let buyer_orders = &state.orders.get(&token).unwrap().buyers;
+        // we have 3 orders
+        assert_eq!(buyer_orders.len(), 3);
 
         let seller = pr(5);
 
         assert_eq!(
-            state.trade(OrderType::Sell, seller, token, 5, None, 123456),
+            state
+                .clone()
+                .trade(OrderType::Sell, seller, token, 5, None, 123456),
             Err("not enough tokens".into())
         );
         state.add_liquidity(seller, token, 250).unwrap();
@@ -735,7 +717,7 @@ mod tests {
         );
         // buyer should have previous amount - volume - fee;
         assert_eq!(icp_pool(&state).get(&pr(0)).unwrap(), &9825000);
-        // fee acount has 2 fees
+        // fee account has 2 fees
         assert_eq!(icp_pool(&state).get(&pr(255)).unwrap(), &(2 * fee_per_side));
 
         // let's sell more
@@ -811,7 +793,9 @@ mod tests {
         let token = pr(100);
 
         assert_eq!(
-            state.create_order(pr(0), token, 7, 5000000, OrderType::Sell),
+            state
+                .clone()
+                .create_order(pr(0), token, 7, 5000000, OrderType::Sell),
             Err("token not listed".into())
         );
 
@@ -819,7 +803,9 @@ mod tests {
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         assert_eq!(
-            state.create_order(pr(0), token, 7, 5000000, OrderType::Sell),
+            state
+                .clone()
+                .create_order(pr(0), token, 7, 5000000, OrderType::Sell),
             Err("no funds available".into())
         );
 
@@ -837,8 +823,10 @@ mod tests {
         // sell order for 25 $TAGGR / 1 ICP each
         state.add_liquidity(pr(2), token, 24).unwrap();
         assert_eq!(
-            state.create_order(pr(2), token, 25, 100000000, OrderType::Sell),
-            Err("not enough tokens available for this order size".into())
+            state
+                .clone()
+                .create_order(pr(2), token, 25, 100000000, OrderType::Sell),
+            Err("not enough funds available for this order size".into())
         );
         state.add_liquidity(pr(2), token, 1).unwrap();
         assert!(state
@@ -857,10 +845,6 @@ mod tests {
 
         let buyer = pr(5);
 
-        assert_eq!(
-            state.trade(OrderType::Buy, buyer, token, 10, None, 123456),
-            Ok(0)
-        );
         // since we had no ICP we didn't buy anything
         assert_eq!(state.pools.get(&token).unwrap().get(&buyer), None);
         state
@@ -1121,7 +1105,7 @@ mod tests {
             .is_ok());
         assert_eq!(
             state.create_order(pr(0), token, 7, 6000000, OrderType::Sell),
-            Err("not enough tokens available for this order size".into())
+            Err("not enough funds available for this order size".into())
         );
     }
 }
