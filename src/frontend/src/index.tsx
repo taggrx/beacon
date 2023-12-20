@@ -38,7 +38,7 @@ const App = () => {
             /* content = <IcpWallet />; */
         }
     } else if (typeof param == "string") {
-        content = <Token id={param} />;
+        content = <Token tokenId={param} />;
     }
     if (content)
         return root.render(

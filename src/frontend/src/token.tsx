@@ -11,28 +11,22 @@ import {
 } from "./common";
 import { Listing } from "./listing";
 
-export const Token = ({ id }: { id: string }) => {
+export const Token = ({ tokenId }: { tokenId: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
-    const [buyOrders, setBuyOrders] = React.useState<Order[]>([]);
-    const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
-    const loadData = async (id: string) => {
-        const [metadata, buyOrders, sellOrders] = await Promise.all([
-            await window.api.query<Result<Metadata>>("token", id),
-            await window.api.orders(Principal.fromText(id), OrderType.Buy),
-            await window.api.orders(Principal.fromText(id), OrderType.Sell),
+    const loadData = async (tokenId: string) => {
+        const [metadata] = await Promise.all([
+            await window.api.query<Result<Metadata>>("token", tokenId),
         ]);
         setMetadata(metadata);
-        setBuyOrders(buyOrders as unknown as any);
-        setSellOrders(sellOrders as unknown as any);
     };
     React.useEffect(() => {
-        if (id) loadData(id);
+        if (tokenId) loadData(tokenId);
     }, []);
 
     if (!metadata) return <Error text="something went wrong." />;
 
     if ("Err" in metadata) {
-        return <Listing id={id} />;
+        return <Listing tokenId={tokenId} />;
     }
 
     const { symbol, logo } = metadata.Ok;
@@ -47,25 +41,116 @@ export const Token = ({ id }: { id: string }) => {
                 />
                 <code className="max_width_col">{symbol}</code>
             </h1>
+            <OrderBook tokenId={tokenId} />
             <div
                 className={
                     bigScreen() ? "two_columns_grid" : "column_container"
                 }
             >
-                <OrderMask id={id} symbol={symbol} orderType={OrderType.Buy} />
-                <OrderMask id={id} symbol={symbol} orderType={OrderType.Sell} />
+                <OrderMask
+                    tokenId={tokenId}
+                    symbol={symbol}
+                    orderType={OrderType.Buy}
+                />
+                <OrderMask
+                    tokenId={tokenId}
+                    symbol={symbol}
+                    orderType={OrderType.Sell}
+                />
             </div>
-            <OrderBook sellers={sellOrders} buyers={buyOrders} />
+        </>
+    );
+};
+
+const OrderBook = ({ tokenId }: { tokenId: string }) => {
+    const [buyOrders, setBuyOrders] = React.useState<Order[]>([]);
+    const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
+    const loadData = async () => {
+        const [buyOrders, sellOrders] = await Promise.all([
+            await window.api.orders(Principal.fromText(tokenId), OrderType.Buy),
+            await window.api.orders(
+                Principal.fromText(tokenId),
+                OrderType.Sell,
+            ),
+        ]);
+        setBuyOrders(buyOrders as unknown as any);
+        setSellOrders(sellOrders as unknown as any);
+    };
+
+    React.useEffect(() => {
+        loadData();
+    }, []);
+
+    const maxOrderSize = buyOrders
+        .concat(sellOrders)
+        .reduce((acc, order) => Math.max(acc, Number(order.amount)), 0);
+
+    const render = (orders: Order[], orderType: OrderType) => {
+        return (
+            <div
+                className="column_container max_width_col"
+                style={{
+                    alignItems:
+                        orderType == OrderType.Buy ? "flex-end" : "flex-start",
+                }}
+            >
+                {orders.map((order, i) => (
+                    <div
+                        key={i}
+                        className="column_container"
+                        style={{
+                            width: "100%",
+                            alignItems:
+                                orderType == OrderType.Buy
+                                    ? "flex-end"
+                                    : "flex-start",
+                            fontSize: "small",
+                            paddingLeft:
+                                orderType == OrderType.Sell ? "0.6em" : "0",
+                            paddingRight:
+                                orderType == OrderType.Buy ? "0.6em" : "0",
+                            color: orderType == OrderType.Buy ? "red" : "green",
+                        }}
+                    >
+                        {token(
+                            order.price,
+                            window.tokenData[PAYMENT_TOKEN_ID].decimals,
+                        )}
+                        <div
+                            style={{
+                                width: `${
+                                    (Number(order.amount) / maxOrderSize) * 100
+                                }%`,
+                                height: "0.5em",
+                                background:
+                                    orderType == OrderType.Buy
+                                        ? "red"
+                                        : "green",
+                            }}
+                        ></div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    return (
+        <>
+            <h2>ORDER BOOK</h2>
+            <div className="row_container">
+                {render(buyOrders, OrderType.Buy)}
+                {render(sellOrders, OrderType.Sell)}
+            </div>
         </>
     );
 };
 
 const OrderMask = ({
-    id,
+    tokenId,
     symbol,
     orderType,
 }: {
-    id: string;
+    tokenId: string;
     symbol: string;
     orderType: OrderType;
 }) => {
@@ -73,7 +158,7 @@ const OrderMask = ({
     const [price, setPrice] = React.useState("");
     const [status, setStatus] = React.useState("");
 
-    const icrcToken = window.tokenData[id];
+    const icrcToken = window.tokenData[tokenId];
     const tokenDecimals = icrcToken.decimals;
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
 
@@ -132,7 +217,7 @@ const OrderMask = ({
                         return;
                     }
                     await executeOrder(
-                        id,
+                        tokenId,
                         BigInt(parsedAmount),
                         BigInt(parsedPrice / Math.pow(10, tokenDecimals)),
                         orderType,
@@ -229,14 +314,3 @@ function parseNumber(amount: string, tokenDecimals: number): number | null {
             return null;
     }
 }
-
-const OrderBook = ({
-    sellers,
-    buyers,
-}: {
-    sellers: Order[];
-    buyers: Order[];
-}) => {
-    console.log(sellers, buyers);
-    return null;
-};

@@ -9,14 +9,14 @@ import {
 } from "./common";
 import { Result } from "./types";
 
-export const Listing = ({ id }: { id: string }) => {
+export const Listing = ({ tokenId }: { tokenId: string }) => {
     const [status, setStatus] = React.useState("");
     const amount = BigInt(Number(window.data.e8s_per_xdr) * 100);
     const price = <code>{token(amount, 8)} ICP</code>;
     return (
         <>
             <h1>
-                Token <code>{id}</code> is not listed yet!
+                Token <code>{tokenId}</code> is not listed yet!
             </h1>
             <p>Listing on BEACON:</p>
             <ul>
@@ -64,7 +64,7 @@ export const Listing = ({ id }: { id: string }) => {
                             setStatus("Deposited ICP to Beacon...");
                             const result = await window.api.call<Result<null>>(
                                 "list_token",
-                                id,
+                                tokenId,
                             );
                             if (!result) {
                                 setStatus("🔴 Call failed.");

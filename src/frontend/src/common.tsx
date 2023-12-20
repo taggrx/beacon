@@ -18,7 +18,7 @@ export const token = (amount: BigInt, decimals: number) => {
     let base = Math.pow(10, decimals);
     let a = Math.floor(n / base);
     let b = n % base;
-    return `${a}.${b}`;
+    return parseFloat(`${a}.${b}`);
 };
 
 export const bigScreen = () => window.innerWidth >= 1024;
