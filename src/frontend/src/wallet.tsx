@@ -37,11 +37,6 @@ export const Wallet = ({}) => {
             <span style={{ fontSize: "small" }}>
                 <CopyToClipboard value={window.principalId.toString()} />
             </span>
-            <Button
-                classNameArg="top_spaced"
-                label="REFRESH"
-                onClick={loadData}
-            />
         </div>
     );
 };
@@ -101,11 +96,17 @@ const BalanceLine = ({
             {!status && (
                 <>
                     <span className="row_container vcentered">
-                        {logo ? (
-                            <img src={`${logo}`} width="20px" height="20px" />
-                        ) : (
-                            <span style={{ width: "20px" }}>💎</span>
-                        )}{" "}
+                        <div className="right_half_spaced vcentered">
+                            {logo ? (
+                                <img
+                                    src={`${logo}`}
+                                    width="20px"
+                                    height="20px"
+                                />
+                            ) : (
+                                <span style={{ width: "20px" }}>💎</span>
+                            )}
+                        </div>{" "}
                         <a href={`#/${id}`}>{symbol}</a>
                     </span>
                     <div className="max_width_col"></div>

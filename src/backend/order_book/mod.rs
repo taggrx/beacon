@@ -80,7 +80,7 @@ pub struct State {
     orders: BTreeMap<TokenId, Book>,
     order_archive: BTreeMap<TokenId, Vec<Order>>,
     pools: BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
-    tokens: BTreeMap<TokenId, Metadata>,
+    pub tokens: BTreeMap<TokenId, Metadata>,
     pub e8s_per_xdr: u64,
     pub revenue_account: Option<Principal>,
     pub logs: VecDeque<String>,
