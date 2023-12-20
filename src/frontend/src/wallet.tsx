@@ -7,10 +7,15 @@ export const Wallet = ({}) => {
         window.internalBalances,
         "internal",
     );
+    const renderedBalances = renderBalances(window.balances);
     return (
         <div id="wallet" className="modal column_container">
-            <h3>FUNDS IN WALLET</h3>
-            {renderBalances(window.balances)}
+            {renderedBalances.length > 0 && (
+                <>
+                    <h3>FUNDS IN WALLET</h3>
+                    {renderedBalances}
+                </>
+            )}
             {internalRenderedBalances.length > 0 && (
                 <>
                     <h3>FUNDS ON BEACON</h3>
@@ -37,7 +42,7 @@ const renderBalances = (
     internal?: string,
 ) =>
     Object.entries(window.tokenData)
-        .filter(([id]) => id in balances)
+        .filter(([id]) => id in balances && balances[id] > 0)
         .map(([id, data]) => (
             <BalanceLine
                 key={id}
