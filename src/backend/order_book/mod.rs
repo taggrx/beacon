@@ -167,13 +167,10 @@ impl State {
         order_type: OrderType,
     ) -> Box<dyn Iterator<Item = &'_ Order> + '_> {
         if let Some(book) = self.orders.get(&token) {
-            Box::new(
-                match order_type {
-                    OrderType::Buy => &book.buyers,
-                    OrderType::Sell => &book.sellers,
-                }
-                .iter(),
-            )
+            match order_type {
+                OrderType::Buy => Box::new(book.buyers.iter().rev()),
+                OrderType::Sell => Box::new(book.sellers.iter()),
+            }
         } else {
             Box::new(std::iter::empty())
         }

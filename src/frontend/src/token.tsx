@@ -13,6 +13,7 @@ import { Listing } from "./listing";
 
 export const Token = ({ tokenId }: { tokenId: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
+    const [heartbeat, setHeartbeat] = React.useState(new Date());
     const loadData = async (tokenId: string) => {
         const [metadata] = await Promise.all([
             await window.api.query<Result<Metadata>>("token", tokenId),
@@ -30,6 +31,10 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     }
 
     const { symbol, logo } = metadata.Ok;
+    const callback = () => {
+        window.refreshBackendData();
+        setHeartbeat(new Date());
+    };
     return (
         <>
             <h1 className="row_container vcentered">
@@ -41,7 +46,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 />
                 <code className="max_width_col">{symbol}</code>
             </h1>
-            <OrderBook tokenId={tokenId} />
+            <OrderBook tokenId={tokenId} heartbeat={heartbeat} />
             <div
                 className={
                     bigScreen() ? "two_columns_grid" : "column_container"
@@ -51,18 +56,26 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     tokenId={tokenId}
                     symbol={symbol}
                     orderType={OrderType.Buy}
+                    callback={callback}
                 />
                 <OrderMask
                     tokenId={tokenId}
                     symbol={symbol}
                     orderType={OrderType.Sell}
+                    callback={callback}
                 />
             </div>
         </>
     );
 };
 
-const OrderBook = ({ tokenId }: { tokenId: string }) => {
+const OrderBook = ({
+    tokenId,
+    heartbeat,
+}: {
+    tokenId: string;
+    heartbeat: any;
+}) => {
     const [buyOrders, setBuyOrders] = React.useState<Order[]>([]);
     const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
     const loadData = async () => {
@@ -79,7 +92,7 @@ const OrderBook = ({ tokenId }: { tokenId: string }) => {
 
     React.useEffect(() => {
         loadData();
-    }, []);
+    }, [heartbeat]);
 
     const maxOrderSize = buyOrders
         .concat(sellOrders)
@@ -88,7 +101,7 @@ const OrderBook = ({ tokenId }: { tokenId: string }) => {
     const render = (orders: Order[], orderType: OrderType) => {
         return (
             <div
-                className="column_container max_width_col"
+                className="column_container max_width_col bottom_spaced"
                 style={{
                     alignItems:
                         orderType == OrderType.Buy ? "flex-end" : "flex-start",
@@ -104,30 +117,52 @@ const OrderBook = ({ tokenId }: { tokenId: string }) => {
                                 orderType == OrderType.Buy
                                     ? "flex-end"
                                     : "flex-start",
-                            fontSize: "small",
+                            fontSize: "xx-small",
                             paddingLeft:
                                 orderType == OrderType.Sell ? "0.6em" : "0",
                             paddingRight:
                                 orderType == OrderType.Buy ? "0.6em" : "0",
-                            color: orderType == OrderType.Buy ? "red" : "green",
+                            color: orderType == OrderType.Buy ? "green" : "red",
+                            boxSizing: "border-box",
                         }}
                     >
                         {token(
-                            order.price,
+                            BigInt(
+                                Number(order.price) *
+                                    Math.pow(
+                                        10,
+                                        window.tokenData[tokenId].decimals,
+                                    ),
+                            ),
                             window.tokenData[PAYMENT_TOKEN_ID].decimals,
-                        )}
+                        )}{" "}
+                        {window.tokenData[PAYMENT_TOKEN_ID].symbol}
                         <div
                             style={{
                                 width: `${
                                     (Number(order.amount) / maxOrderSize) * 100
                                 }%`,
-                                height: "0.5em",
+                                color: "white",
+                                fontSize: "xx-small",
+                                paddingLeft: "0.5em",
+                                paddingRight: "0.5em",
+                                boxSizing: "border-box",
                                 background:
                                     orderType == OrderType.Buy
-                                        ? "red"
-                                        : "green",
+                                        ? "green"
+                                        : "red",
                             }}
-                        ></div>
+                        >
+                            {(Number(order.amount) / maxOrderSize) * 100 >
+                            15 ? (
+                                `${token(
+                                    order.amount,
+                                    window.tokenData[tokenId].decimals,
+                                )} ${window.tokenData[tokenId].symbol}`
+                            ) : (
+                                <span>&nbsp;</span>
+                            )}
+                        </div>
                     </div>
                 ))}
             </div>
@@ -149,10 +184,12 @@ const OrderMask = ({
     tokenId,
     symbol,
     orderType,
+    callback,
 }: {
     tokenId: string;
     symbol: string;
     orderType: OrderType;
+    callback: () => void;
 }) => {
     const [amount, setAmount] = React.useState("0.0");
     const [price, setPrice] = React.useState("");
@@ -223,7 +260,7 @@ const OrderMask = ({
                         orderType,
                         setStatus,
                     );
-                    window.refreshBackendData();
+                    callback();
                 }}
             />
         </div>
