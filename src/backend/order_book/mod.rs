@@ -11,6 +11,7 @@ pub type Tokens = u128;
 pub type TokenId = Principal;
 pub type E8sPerToken = u128;
 pub type E8s = u128;
+pub type Time = u64;
 
 pub const TX_FEE: u128 = 25; // 0.25% per trade side
 
@@ -34,6 +35,7 @@ pub struct Order {
     owner: Principal,
     amount: Tokens,
     price: E8sPerToken,
+    timestamp: Time,
     executor: Option<Principal>,
     executed: Option<Timestamp>,
 }
@@ -46,14 +48,24 @@ impl PartialOrd for Order {
 
 impl Ord for Order {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.owner == other.owner && self.amount == other.amount && self.price == other.price {
+        if self.owner == other.owner
+            && self.amount == other.amount
+            && self.price == other.price
+            && self.timestamp == other.timestamp
+        {
             return Ordering::Equal;
         }
-        if self.price == other.price && self.amount == other.amount {
+        if self.price == other.price
+            && self.timestamp == other.timestamp
+            && self.amount == other.amount
+        {
             return self.owner.cmp(&other.owner);
         }
-        if self.price == other.price {
+        if self.price == other.price && self.timestamp == other.timestamp {
             return self.amount.cmp(&other.amount);
+        }
+        if self.price == other.price {
+            return self.timestamp.cmp(&other.timestamp);
         }
         self.price.cmp(&other.price)
     }
@@ -95,19 +107,20 @@ impl State {
         }
     }
 
-    // TODO: test
     pub fn close_order(
         &mut self,
         user: Principal,
         token: TokenId,
         amount: Tokens,
         price: E8sPerToken,
+        timestamp: Time,
         order_type: OrderType,
     ) -> Result<(), String> {
         let order = Order {
             owner: user,
             price,
             amount,
+            timestamp,
             executor: None,
             executed: None,
         };
@@ -264,6 +277,7 @@ impl State {
         token: TokenId,
         amount: Tokens,
         price: E8sPerToken,
+        timestamp: Time,
         order_type: OrderType,
     ) -> Result<(), String> {
         if !self.tokens.contains_key(&token) {
@@ -274,6 +288,7 @@ impl State {
             owner: user,
             amount,
             price,
+            timestamp,
             executor: None,
             executed: None,
         };
@@ -484,6 +499,7 @@ mod tests {
             owner: pr(16),
             amount: 12,
             price: 0,
+            timestamp: 111,
             executor: None,
             executed: None,
         };
@@ -491,6 +507,7 @@ mod tests {
             owner: pr(16),
             amount: 32,
             price: 0,
+            timestamp: 111,
             executor: None,
             executed: None,
         };
@@ -504,6 +521,10 @@ mod tests {
         o2.price = 2;
         o1.price = 3;
         assert_eq!(o2.cmp(&o1), Ordering::Less);
+        let mut o3 = o1.clone();
+        assert_eq!(o3.cmp(&o1), Ordering::Equal);
+        o3.timestamp = o3.timestamp - 1;
+        assert_eq!(o3.cmp(&o1), Ordering::Less);
     }
 
     #[test]
@@ -543,11 +564,11 @@ mod tests {
         assert_eq!(state.token_balances(pr(0)).get(&token).unwrap(), &333);
 
         assert_eq!(
-            state.create_order(pr(0), token, 250, 0, OrderType::Sell),
+            state.create_order(pr(0), token, 250, 0, 0, OrderType::Sell),
             Ok(())
         );
         assert_eq!(
-            state.create_order(pr(0), token, 50, 0, OrderType::Sell),
+            state.create_order(pr(0), token, 50, 0, 0, OrderType::Sell),
             Ok(())
         );
 
@@ -556,8 +577,12 @@ mod tests {
             &(333 - 250 - 50)
         );
         assert_eq!(
-            state.close_order(pr(0), token, 50, 0, OrderType::Sell),
+            state.close_order(pr(0), token, 50, 0, 0, OrderType::Sell),
             Ok(())
+        );
+        assert_eq!(
+            state.token_balances(pr(0)).get(&token).unwrap(),
+            &(333 - 250)
         );
 
         assert_eq!(user_orders(&state, token, pr(0), OrderType::Buy).count(), 0);
@@ -609,7 +634,7 @@ mod tests {
         let token = pr(100);
 
         assert_eq!(
-            state.create_order(pr(0), token, 7, 50000000, OrderType::Buy),
+            state.create_order(pr(0), token, 7, 50000000, 0, OrderType::Buy),
             Err("token not listed".into())
         );
 
@@ -617,7 +642,7 @@ mod tests {
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         assert_eq!(
-            state.create_order(pr(0), token, 7, 10000000, OrderType::Buy),
+            state.create_order(pr(0), token, 7, 10000000, 0, OrderType::Buy),
             Err("no funds available".into())
         );
 
@@ -625,7 +650,7 @@ mod tests {
             .add_liquidity(pr(0), MAINNET_LEDGER_CANISTER_ID, 8 * 10000000)
             .unwrap();
         assert!(state
-            .create_order(pr(0), token, 7, 10000000, OrderType::Buy)
+            .create_order(pr(0), token, 7, 10000000, 0, OrderType::Buy)
             .is_ok());
 
         // buy order for 16 $TAGGR / 0.03 ICP each
@@ -633,7 +658,7 @@ mod tests {
             .add_liquidity(pr(1), MAINNET_LEDGER_CANISTER_ID, 17 * 30000000)
             .unwrap();
         assert!(state
-            .create_order(pr(1), token, 16, 3000000, OrderType::Buy)
+            .create_order(pr(1), token, 16, 3000000, 0, OrderType::Buy)
             .is_ok());
 
         // buy order for 25 $TAGGR / 0.01 ICP each
@@ -641,14 +666,14 @@ mod tests {
             .add_liquidity(pr(2), MAINNET_LEDGER_CANISTER_ID, 24 * 1000000)
             .unwrap();
         assert_eq!(
-            state.create_order(pr(2), token, 25, 1000000, OrderType::Buy),
+            state.create_order(pr(2), token, 25, 1000000, 0, OrderType::Buy),
             Err("not enough funds available for this order size".into())
         );
         state
             .add_liquidity(pr(2), MAINNET_LEDGER_CANISTER_ID, 2 * 1000000)
             .unwrap();
         assert!(state
-            .create_order(pr(2), token, 25, 1000000, OrderType::Buy)
+            .create_order(pr(2), token, 25, 1000000, 0, OrderType::Buy)
             .is_ok());
 
         // buyer has 0.01 ICP left minus fee
@@ -795,7 +820,7 @@ mod tests {
         assert_eq!(
             state
                 .clone()
-                .create_order(pr(0), token, 7, 5000000, OrderType::Sell),
+                .create_order(pr(0), token, 7, 5000000, 0, OrderType::Sell),
             Err("token not listed".into())
         );
 
@@ -805,19 +830,19 @@ mod tests {
         assert_eq!(
             state
                 .clone()
-                .create_order(pr(0), token, 7, 5000000, OrderType::Sell),
+                .create_order(pr(0), token, 7, 5000000, 0, OrderType::Sell),
             Err("no funds available".into())
         );
 
         state.add_liquidity(pr(0), token, 7).unwrap();
         assert!(state
-            .create_order(pr(0), token, 7, 5000000, OrderType::Sell)
+            .create_order(pr(0), token, 7, 5000000, 0, OrderType::Sell)
             .is_ok());
 
         // sell order for 16 $TAGGR / 0.03 ICP each
         state.add_liquidity(pr(1), token, 16).unwrap();
         assert!(state
-            .create_order(pr(1), token, 16, 3000000, OrderType::Sell)
+            .create_order(pr(1), token, 16, 3000000, 0, OrderType::Sell)
             .is_ok());
 
         // sell order for 25 $TAGGR / 1 ICP each
@@ -825,12 +850,12 @@ mod tests {
         assert_eq!(
             state
                 .clone()
-                .create_order(pr(2), token, 25, 100000000, OrderType::Sell),
+                .create_order(pr(2), token, 25, 100000000, 0, OrderType::Sell),
             Err("not enough funds available for this order size".into())
         );
         state.add_liquidity(pr(2), token, 1).unwrap();
         assert!(state
-            .create_order(pr(2), token, 25, 100000000, OrderType::Sell)
+            .create_order(pr(2), token, 25, 100000000, 0, OrderType::Sell)
             .is_ok());
 
         // Order book: 16 @ 0.03, 7 @ 0.05, 25 @ 1
@@ -958,7 +983,7 @@ mod tests {
             .add_liquidity(pr(0), MAINNET_LEDGER_CANISTER_ID, 8 * 10000000)
             .unwrap();
         assert!(state
-            .create_order(pr(0), token, 7, 10000000, OrderType::Buy)
+            .create_order(pr(0), token, 7, 10000000, 0, OrderType::Buy)
             .is_ok());
 
         // buy order for 16 $TAGGR / 0.03 ICP each
@@ -966,7 +991,7 @@ mod tests {
             .add_liquidity(pr(1), MAINNET_LEDGER_CANISTER_ID, 17 * 30000000)
             .unwrap();
         assert!(state
-            .create_order(pr(1), token, 16, 3000000, OrderType::Buy)
+            .create_order(pr(1), token, 16, 3000000, 0, OrderType::Buy)
             .is_ok());
 
         // buy order for 25 $TAGGR / 0.01 ICP each
@@ -974,7 +999,7 @@ mod tests {
             .add_liquidity(pr(2), MAINNET_LEDGER_CANISTER_ID, 26 * 1000000)
             .unwrap();
         assert!(state
-            .create_order(pr(2), token, 25, 1000000, OrderType::Buy)
+            .create_order(pr(2), token, 25, 1000000, 0, OrderType::Buy)
             .is_ok());
 
         // Orer book: 7 @ 0.1, 16 @ 0.03, 25 @ 0.01
@@ -1025,19 +1050,19 @@ mod tests {
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();
         assert!(state
-            .create_order(pr(0), token, 7, 5000000, OrderType::Sell)
+            .create_order(pr(0), token, 7, 5000000, 0, OrderType::Sell)
             .is_ok());
 
         // sell order for 16 $TAGGR / 0.03 ICP each
         state.add_liquidity(pr(1), token, 16).unwrap();
         assert!(state
-            .create_order(pr(1), token, 16, 3000000, OrderType::Sell)
+            .create_order(pr(1), token, 16, 3000000, 0, OrderType::Sell)
             .is_ok());
 
         // sell order for 25 $TAGGR / 1 ICP each
         state.add_liquidity(pr(2), token, 25).unwrap();
         assert!(state
-            .create_order(pr(2), token, 25, 100000000, OrderType::Sell)
+            .create_order(pr(2), token, 25, 100000000, 0, OrderType::Sell)
             .is_ok());
 
         // Order book: 16 @ 0.03, 7 @ 0.05, 25 @ 1
@@ -1101,10 +1126,10 @@ mod tests {
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();
         assert!(state
-            .create_order(pr(0), token, 7, 5000000, OrderType::Sell)
+            .create_order(pr(0), token, 7, 5000000, 0, OrderType::Sell)
             .is_ok());
         assert_eq!(
-            state.create_order(pr(0), token, 7, 6000000, OrderType::Sell),
+            state.create_order(pr(0), token, 7, 6000000, 0, OrderType::Sell),
             Err("not enough funds available for this order size".into())
         );
     }

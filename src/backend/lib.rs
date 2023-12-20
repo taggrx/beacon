@@ -14,7 +14,7 @@ use ic_cdk::{
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{Tokens as ICP, DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
-use order_book::{Order, OrderType, State, TokenId, Tokens, TX_FEE};
+use order_book::{Order, OrderType, State, Time, TokenId, Tokens, TX_FEE};
 
 mod assets;
 mod icrc1;
@@ -91,8 +91,9 @@ async fn close_order(
     order_type: OrderType,
     amount: u128,
     price: Tokens,
+    timestamp: Time,
 ) -> Result<(), String> {
-    mutate(|state| state.close_order(caller(), token, amount, price, order_type))
+    mutate(|state| state.close_order(caller(), token, amount, price, timestamp, order_type))
 }
 
 #[update]
@@ -132,16 +133,11 @@ async fn trade(
             state.add_liquidity(user, pool_token, balance)?;
         }
 
+        let now = ic_cdk::api::time();
+
         // match existing orders
         let filled = state
-            .trade(
-                order_type,
-                user,
-                token,
-                amount,
-                Some(price),
-                ic_cdk::api::time(),
-            )
+            .trade(order_type, user, token, amount, Some(price), now)
             .expect("trade failed");
 
         // create a rest order if the original was not filled and this was a limit order
@@ -154,6 +150,7 @@ async fn trade(
                         token,
                         amount.saturating_sub(filled),
                         price,
+                        now,
                         order_type,
                     )
                     .expect("order creation failed");
