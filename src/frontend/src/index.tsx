@@ -21,6 +21,9 @@ declare global {
         authClient: AuthClient;
         data: Data;
         tokenData: { [key: string]: Metadata };
+        internalBalances: {
+            [key: string]: bigint;
+        };
         balances: { [key: string]: bigint };
         refreshBackendData: () => Promise<void>;
     }
@@ -78,21 +81,33 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         window.api = ApiGenerator(process.env.CANISTER_ID || "", identity);
 
         window.refreshBackendData = async () => {
-            console.log("Fetching backend data...");
-            const data: any = await window.api.query<Data>("params");
+            console.log("Fetching data...");
+            const [data, tokenData, internalBalances]: any = await Promise.all([
+                window.api.query<Data>("params"),
+                window.api.query<{ [key: string]: Metadata }>("tokens"),
+                window.api.query<{
+                    [key: string]: bigint;
+                }>("token_balances"),
+            ]);
             window.data = data;
-            window.tokenData =
-                (await window.api.query<{ [key: string]: Metadata }>(
-                    "tokens",
-                )) || {};
+            window.tokenData = tokenData;
+            window.internalBalances = internalBalances;
             window.balances = {};
-            if (window.principalId)
-                Object.keys(window.tokenData).forEach(async (tokenId) => {
-                    window.balances[tokenId] = await window.api.account_balance(
-                        Principal.fromText(tokenId),
-                        window.principalId,
-                    );
-                });
+            if (window.principalId) {
+                let results = await Promise.all(
+                    Object.keys(window.tokenData).map(async (tokenId) => {
+                        let balance = await window.api.account_balance(
+                            Principal.fromText(tokenId),
+                            window.principalId,
+                        );
+                        return [tokenId, balance];
+                    }),
+                );
+                results.forEach(
+                    ([tokenId, balance]: any) =>
+                        (window.balances[tokenId] = balance),
+                );
+            }
             App();
         };
 

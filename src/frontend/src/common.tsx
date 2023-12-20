@@ -70,10 +70,17 @@ export const ConnectButton = ({}) => (
     </button>
 );
 
-export const CopyToClipboard = ({ value }: { value: string }) => {
+export const CopyToClipboard = ({
+    value,
+    classNameArg,
+}: {
+    value: string;
+    classNameArg?: string;
+}) => {
     const [copied, setCopied] = React.useState(false);
     return (
         <span
+            className={classNameArg}
             style={{ cursor: "pointer" }}
             title="Copy to clipboard"
             onClick={async () => {

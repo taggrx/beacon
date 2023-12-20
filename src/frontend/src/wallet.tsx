@@ -3,30 +3,14 @@ import { Button, CopyToClipboard, token } from "./common";
 import { Principal } from "@dfinity/principal";
 
 export const Wallet = ({}) => {
-    const [internalBalances, setInternalBalances] = React.useState<{
-        [key: string]: bigint;
-    }>({});
-    const loadData = async () => {
-        let [internalBalances] = await Promise.all([
-            window.api.query<{ [key: string]: bigint }>("token_balances"),
-        ]);
-        setInternalBalances(internalBalances || {});
-    };
-
-    React.useEffect(() => {
-        loadData();
-    }, []);
-
     const internalRenderedBalances = renderBalances(
-        internalBalances,
-        loadData,
+        window.internalBalances,
         "internal",
     );
-
     return (
         <div id="wallet" className="modal column_container">
             <h3>FUNDS IN WALLET</h3>
-            {renderBalances(window.balances, loadData)}
+            {renderBalances(window.balances)}
             {internalRenderedBalances.length > 0 && (
                 <>
                     <h3>FUNDS ON BEACON</h3>
@@ -34,16 +18,22 @@ export const Wallet = ({}) => {
                 </>
             )}
             <h3>PRINCIPAL</h3>
-            <span style={{ fontSize: "small" }}>
-                <CopyToClipboard value={window.principalId.toString()} />
-            </span>
+            <div
+                style={{ fontSize: "small" }}
+                className="row_container vcentered"
+            >
+                <CopyToClipboard
+                    classNameArg="max_width_col"
+                    value={window.principalId.toString()}
+                />
+                <Button label="REFRESH" onClick={window.refreshBackendData} />
+            </div>
         </div>
     );
 };
 
 const renderBalances = (
     balances: { [key: string]: bigint },
-    callback: () => Promise<any>,
     internal?: string,
 ) =>
     Object.entries(window.tokenData)
@@ -57,7 +47,6 @@ const renderBalances = (
                 balance={balances[id]}
                 decimals={data.decimals}
                 fee={data.fee}
-                callback={callback}
                 internal={!!internal}
             />
         ));
@@ -69,7 +58,6 @@ const BalanceLine = ({
     balance,
     decimals,
     fee,
-    callback,
     internal,
 }: {
     id: string;
@@ -79,7 +67,6 @@ const BalanceLine = ({
     decimals: number;
     fee: bigint;
     internal: boolean;
-    callback: () => Promise<any>;
 }) => {
     const [status, setStatus] = React.useState("");
     const showStatus = (msg: string) => {
@@ -88,7 +75,7 @@ const BalanceLine = ({
     };
     const callBackWithStatus = (msg: string) => {
         showStatus(msg);
-        callback();
+        window.refreshBackendData();
     };
     return (
         <div key={id} className="row_container vcentered bottom_spaced">

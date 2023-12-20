@@ -223,6 +223,7 @@ const OrderMask = ({
                         orderType,
                         setStatus,
                     );
+                    window.refreshBackendData();
                 }}
             />
         </div>
