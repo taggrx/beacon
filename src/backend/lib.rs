@@ -120,8 +120,9 @@ async fn close_order(
     amount: u128,
     price: Tokens,
     timestamp: Timestamp,
-) -> Result<(), String> {
+) {
     mutate(|state| state.close_order(caller(), token, amount, price, timestamp, order_type))
+        .expect("couldn't close order")
 }
 
 #[update]
@@ -200,8 +201,8 @@ async fn trade(
 #[update]
 async fn withdraw(token_id: Principal) -> Result<u128, String> {
     let user = caller();
-    let balance = mutate(|state| state.withdraw_liquidity(user, token_id))?;
     let fee = read(|state| state.token(token_id))?.fee;
+    let balance = mutate(|state| state.withdraw_liquidity(user, token_id))?;
     let amount = balance - fee;
     icrc1::transfer(
         token_id,

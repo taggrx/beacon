@@ -42,7 +42,7 @@ export type Backend = {
         amount: bigint,
         price: bigint,
         timestamp: number,
-    ) => Promise<JsonValue>;
+    ) => Promise<void>;
 
     trade: (
         tokenId: Principal,
@@ -213,7 +213,7 @@ export const ApiGenerator = (
             amount: bigint,
             price: bigint,
             timestamp: number,
-        ): Promise<JsonValue> => {
+        ): Promise<void> => {
             const arg = IDL.encode(
                 [
                     IDL.Principal,
@@ -238,15 +238,6 @@ export const ApiGenerator = (
             if ("Err" in response) {
                 throw new Error(`Error: ${response.Err}`);
             }
-            return IDL.decode(
-                [
-                    IDL.Variant({
-                        Ok: IDL.Null,
-                        Err: IDL.Text,
-                    }),
-                ],
-                response,
-            )[0];
         },
 
         executed_orders: async (tokenId: Principal): Promise<JsonValue> => {

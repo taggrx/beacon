@@ -115,14 +115,6 @@ impl State {
         timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
-        let order = Order {
-            owner: user,
-            price,
-            amount,
-            timestamp,
-            executor: None,
-            executed: 0,
-        };
         let orders = self
             .orders
             .get_mut(&token)
@@ -131,6 +123,14 @@ impl State {
                 OrderType::Sell => &mut book.sellers,
             })
             .ok_or("no token found")?;
+        let order = Order {
+            owner: user,
+            price,
+            amount,
+            timestamp,
+            executor: None,
+            executed: 0,
+        };
         let reserved_liquidity = if order_type.buy() {
             let volume = order.amount * order.price as u128;
             let fee = trading_fee(volume);
