@@ -1,7 +1,7 @@
 use icrc1::Account;
 use serde::Serialize;
-use std::cell::RefCell;
 use std::time::Duration;
+use std::{cell::RefCell, collections::VecDeque};
 
 use candid::Principal;
 use ic_cdk::{
@@ -14,7 +14,7 @@ use ic_cdk::{
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{Tokens as ICP, DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
-use order_book::{Order, OrderType, State, Time, TokenId, Tokens, TX_FEE};
+use order_book::{Order, OrderType, State, Timestamp, TokenId, Tokens, TX_FEE};
 
 mod assets;
 mod icrc1;
@@ -76,6 +76,11 @@ fn orders(token: TokenId, order_type: OrderType) -> Vec<Order> {
     read(|state| state.orders(token, order_type).cloned().collect())
 }
 
+#[query]
+fn executed_orders(token: TokenId) -> VecDeque<Order> {
+    read(|state| state.order_archive.get(&token).cloned().unwrap_or_default())
+}
+
 #[update]
 fn set_revenue_account(new_address: Principal) {
     mutate(|state| {
@@ -91,7 +96,7 @@ async fn close_order(
     order_type: OrderType,
     amount: u128,
     price: Tokens,
-    timestamp: Time,
+    timestamp: Timestamp,
 ) -> Result<(), String> {
     mutate(|state| state.close_order(caller(), token, amount, price, timestamp, order_type))
 }
@@ -137,7 +142,14 @@ async fn trade(
 
         // match existing orders
         let filled = state
-            .trade(order_type, user, token, amount, Some(price), now)
+            .trade(
+                order_type,
+                user,
+                token,
+                amount,
+                (price > 0).then_some(price),
+                now,
+            )
             .expect("trade failed");
 
         // create a rest order if the original was not filled and this was a limit order

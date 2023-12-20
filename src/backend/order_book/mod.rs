@@ -7,11 +7,11 @@ use candid::{CandidType, Principal};
 use ic_ledger_types::MAINNET_LEDGER_CANISTER_ID;
 use serde::{Deserialize, Serialize};
 
+pub type Timestamp = u64;
 pub type Tokens = u128;
 pub type TokenId = Principal;
 pub type E8sPerToken = u128;
 pub type E8s = u128;
-pub type Time = u64;
 
 pub const TX_FEE: u128 = 25; // 0.25% per trade side
 
@@ -35,9 +35,9 @@ pub struct Order {
     owner: Principal,
     amount: Tokens,
     price: E8sPerToken,
-    timestamp: Time,
+    timestamp: Timestamp,
     executor: Option<Principal>,
-    executed: Option<Timestamp>,
+    executed: Timestamp,
 }
 
 impl PartialOrd for Order {
@@ -77,8 +77,6 @@ struct Book {
     sellers: BTreeSet<Order>,
 }
 
-type Timestamp = u64;
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Metadata {
     pub symbol: String,
@@ -90,7 +88,7 @@ pub struct Metadata {
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct State {
     orders: BTreeMap<TokenId, Book>,
-    order_archive: BTreeMap<TokenId, Vec<Order>>,
+    pub order_archive: BTreeMap<TokenId, VecDeque<Order>>,
     pools: BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
     pub tokens: BTreeMap<TokenId, Metadata>,
     pub e8s_per_xdr: u64,
@@ -113,7 +111,7 @@ impl State {
         token: TokenId,
         amount: Tokens,
         price: E8sPerToken,
-        timestamp: Time,
+        timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
         let order = Order {
@@ -122,7 +120,7 @@ impl State {
             amount,
             timestamp,
             executor: None,
-            executed: None,
+            executed: 0,
         };
         let orders = self
             .orders
@@ -274,7 +272,7 @@ impl State {
         token: TokenId,
         amount: Tokens,
         price: E8sPerToken,
-        timestamp: Time,
+        timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
         if !self.tokens.contains_key(&token) {
@@ -287,7 +285,7 @@ impl State {
             price,
             timestamp,
             executor: None,
-            executed: None,
+            executed: 0,
         };
         let order_book = self.orders.entry(token).or_default();
         let token_balance = self
@@ -389,8 +387,8 @@ impl State {
 
             filled += order.amount;
             order.executor = Some(trader);
-            order.executed = Some(time);
-            archive.push(order);
+            order.executed = time;
+            archive.push_front(order);
 
             if amount == 0 {
                 break;
@@ -498,7 +496,7 @@ mod tests {
             price: 0,
             timestamp: 111,
             executor: None,
-            executed: None,
+            executed: 0,
         };
         let mut o2 = Order {
             owner: pr(16),
@@ -506,7 +504,7 @@ mod tests {
             price: 0,
             timestamp: 111,
             executor: None,
-            executed: None,
+            executed: 0,
         };
 
         assert_eq!(o1.cmp(&o1), Ordering::Equal);
@@ -719,8 +717,8 @@ mod tests {
 
         let archived_orders = state.order_archive.get(&token).unwrap();
         assert_eq!(archived_orders.len(), 1);
-        let executed_order = archived_orders.first().unwrap();
-        assert_eq!(executed_order.executed, Some(123456));
+        let executed_order = archived_orders.front().unwrap();
+        assert_eq!(executed_order.executed, 123456);
         assert_eq!(executed_order.executor, Some(seller));
         // only 5 tokens got traded
         assert_eq!(executed_order.amount, 5);
@@ -889,8 +887,8 @@ mod tests {
 
         let archived_orders = state.order_archive.get(&token).unwrap();
         assert_eq!(archived_orders.len(), 1);
-        let executed_order = archived_orders.first().unwrap();
-        assert_eq!(executed_order.executed, Some(123456));
+        let executed_order = archived_orders.front().unwrap();
+        assert_eq!(executed_order.executed, 123456);
         assert_eq!(executed_order.executor, Some(buyer));
         // only 5 tokens got traded
         assert_eq!(executed_order.amount, 10);

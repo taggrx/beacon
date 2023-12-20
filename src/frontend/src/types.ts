@@ -29,4 +29,5 @@ export type Order = {
     owner: Principal;
     amount: bigint;
     price: bigint;
+    executed: number;
 };

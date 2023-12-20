@@ -34,6 +34,8 @@ export type Backend = {
 
     orders: (tokenId: Principal, orderType: OrderType) => Promise<JsonValue>;
 
+    executed_orders: (tokenId: Principal) => Promise<JsonValue>;
+
     trade: (
         tokenId: Principal,
         amount: bigint,
@@ -188,6 +190,35 @@ export const ApiGenerator = (
                             owner: IDL.Principal,
                             amount: IDL.Nat,
                             price: IDL.Nat,
+                        }),
+                    ),
+                ],
+                response,
+            )[0];
+        },
+
+        executed_orders: async (tokenId: Principal): Promise<JsonValue> => {
+            const arg = IDL.encode([IDL.Principal], [tokenId]);
+            const response = await query_raw(
+                canisterId,
+                "executed_orders",
+                arg,
+            );
+
+            if (!response) {
+                throw new Error("Call failed");
+            }
+            if ("Err" in response) {
+                throw new Error(`Error: ${response.Err}`);
+            }
+            return IDL.decode(
+                [
+                    IDL.Vec(
+                        IDL.Record({
+                            owner: IDL.Principal,
+                            amount: IDL.Nat,
+                            price: IDL.Nat,
+                            executed: IDL.Nat64,
                         }),
                     ),
                 ],

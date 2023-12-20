@@ -6,15 +6,18 @@ import { Listing } from "./listing";
 
 export const Token = ({ tokenId }: { tokenId: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
+    const [executedOrders, setExecutedOrders] = React.useState<Order[]>([]);
     const [heartbeat, setHeartbeat] = React.useState(new Date());
     const [orderCreation, setOrderCreation] = React.useState<OrderType | null>(
         null,
     );
     const loadData = async (tokenId: string) => {
-        const [metadata] = await Promise.all([
+        const [metadata, executedOrders] = await Promise.all([
             await window.api.query<Result<Metadata>>("token", tokenId),
+            await window.api.executed_orders(Principal.fromText(tokenId)),
         ]);
         setMetadata(metadata);
+        setExecutedOrders(executedOrders as unknown as any);
     };
     React.useEffect(() => {
         if (tokenId) loadData(tokenId);
@@ -31,16 +34,33 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         window.refreshBackendData();
         setHeartbeat(new Date());
     };
+    const tokenData = window.tokenData[tokenId];
+    const paymentTokenDataData = window.tokenData[PAYMENT_TOKEN_ID];
+    console.log(executedOrders);
     return (
         <>
             <h1 className="row_container vcentered">
-                <img
-                    height="50"
-                    width="50"
-                    src={logo}
-                    className="align-middle"
-                />
-                <code className="max_width_col">{symbol}</code>
+                <div className="max_width_col">
+                    <img
+                        height="50"
+                        width="50"
+                        src={logo}
+                        className="align-middle"
+                    />
+                    <code className="max_width_col">{symbol}</code>
+                </div>
+                {executedOrders.length > 0 && (
+                    <code>
+                        {token(
+                            humanReadablePrice(
+                                executedOrders[0].price,
+                                tokenId,
+                            ),
+                            paymentTokenDataData.decimals,
+                        )}{" "}
+                        {paymentTokenDataData.symbol}
+                    </code>
+                )}
             </h1>
             <OrderBook tokenId={tokenId} heartbeat={heartbeat} />
             {orderCreation && (
@@ -49,7 +69,10 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     symbol={symbol}
                     orderType={orderCreation}
                     callback={callback}
-                    cancelCallback={() => setOrderCreation(null)}
+                    cancelCallback={() => {
+                        setOrderCreation(null);
+                        loadData(tokenId);
+                    }}
                 />
             )}
             {!orderCreation && (
@@ -74,9 +97,47 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     ))}
                 </div>
             )}
+            {executedOrders.length > 0 && (
+                <>
+                    <h2>Executed Orders</h2>
+                    <table style={{ fontSize: "small", width: "100%" }}>
+                        <tbody>
+                            {executedOrders.map((order) => (
+                                <tr key={order.executed}>
+                                    <td>
+                                        {new Date(
+                                            Number(order.executed) / 1000000,
+                                        ).toLocaleString()}
+                                    </td>
+                                    <td>
+                                        {token(
+                                            order.amount,
+                                            tokenData.decimals,
+                                        )}
+                                    </td>
+                                    <td>{tokenData.symbol}</td>
+                                    <td>
+                                        {token(
+                                            humanReadablePrice(
+                                                order.price,
+                                                tokenId,
+                                            ),
+                                            paymentTokenDataData.decimals,
+                                        )}
+                                    </td>
+                                    <td>{paymentTokenDataData.symbol}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </>
+            )}
         </>
     );
 };
+
+const humanReadablePrice = (price: bigint, tokenId: string) =>
+    BigInt(Number(price) * Math.pow(10, window.tokenData[tokenId].decimals));
 
 const OrderBook = ({
     tokenId,
@@ -147,13 +208,7 @@ const OrderBook = ({
                             }}
                         >
                             {token(
-                                BigInt(
-                                    Number(order.price) *
-                                        Math.pow(
-                                            10,
-                                            window.tokenData[tokenId].decimals,
-                                        ),
-                                ),
+                                humanReadablePrice(order.price, tokenId),
                                 window.tokenData[PAYMENT_TOKEN_ID].decimals,
                             )}{" "}
                             {window.tokenData[PAYMENT_TOKEN_ID].symbol}
@@ -175,7 +230,7 @@ const OrderBook = ({
                             }}
                         >
                             {(Number(order.amount) / maxOrderSize) * 100 >
-                            15 ? (
+                            20 ? (
                                 `${token(
                                     order.amount,
                                     window.tokenData[tokenId].decimals,
@@ -267,9 +322,7 @@ const OrderMask = ({
                         background:
                             orderType == OrderType.Buy ? "green" : "red",
                     }}
-                    label={`${price ? "LIMIT " : "MARKET "}${action} (FEE ${
-                        Number(window.data.fee) / 100
-                    }%)`}
+                    label={`${price ? "LIMIT " : "MARKET "}${action}`}
                     onClick={async () => {
                         const parsedAmount = parseNumber(amount, tokenDecimals);
                         if (parsedAmount == null) {
@@ -343,7 +396,8 @@ const executeOrder = async (
             return;
         }
         let [filled, orderCreated] = result.Ok;
-        let status = `Order filled for ${filled} tokens. `;
+        const { decimals, symbol } = window.tokenData[tradedTokenId];
+        let status = `Order filled for ${token(filled, decimals)} ${symbol}. `;
         status += orderCreated
             ? "An order was created."
             : "No order was created.";
