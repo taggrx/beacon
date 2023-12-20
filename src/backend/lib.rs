@@ -262,7 +262,7 @@ fn post_upgrade() {
 async fn list_token_core(token: TokenId) -> Result<(), String> {
     let user_account = icrc1::user_account(caller());
     let balance = icrc1::balance_of(MAINNET_LEDGER_CANISTER_ID, &user_account).await?;
-    let listing_price = read(|state| state.e8s_per_xdr * 100);
+    let listing_price = read(|state| state.e8s_per_xdr * 100) - DEFAULT_FEE.e8s();
     if balance < listing_price as u128 {
         return Err(format!(
             "Balance too low! Expected: {}, found: {}.",
