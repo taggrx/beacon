@@ -26,6 +26,7 @@ export enum OrderType {
 }
 
 export type Order = {
+    timestamp: number;
     owner: Principal;
     amount: bigint;
     price: bigint;

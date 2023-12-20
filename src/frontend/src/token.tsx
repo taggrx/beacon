@@ -33,10 +33,10 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     const callback = () => {
         window.refreshBackendData();
         setHeartbeat(new Date());
+        loadData(tokenId);
     };
     const tokenData = window.tokenData[tokenId];
     const paymentTokenDataData = window.tokenData[PAYMENT_TOKEN_ID];
-    console.log(executedOrders);
     return (
         <>
             <h1 className="row_container vcentered">
@@ -69,10 +69,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     symbol={symbol}
                     orderType={orderCreation}
                     callback={callback}
-                    cancelCallback={() => {
-                        setOrderCreation(null);
-                        loadData(tokenId);
-                    }}
+                    cancelCallback={() => setOrderCreation(null)}
                 />
             )}
             {!orderCreation && (
@@ -103,7 +100,15 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     <table style={{ fontSize: "small", width: "100%" }}>
                         <tbody>
                             {executedOrders.map((order) => (
-                                <tr key={order.executed}>
+                                <tr
+                                    key={
+                                        order.owner.toString() +
+                                        order.price.toString() +
+                                        order.timestamp +
+                                        order.amount +
+                                        order.executed
+                                    }
+                                >
                                     <td>
                                         {new Date(
                                             Number(order.executed) / 1000000,
@@ -397,7 +402,10 @@ const executeOrder = async (
         }
         let [filled, orderCreated] = result.Ok;
         const { decimals, symbol } = window.tokenData[tradedTokenId];
-        let status = `Order filled for ${token(filled, decimals)} ${symbol}. `;
+        let status =
+            filled > 0
+                ? `Order filled for ${token(filled, decimals)} ${symbol}. `
+                : "";
         status += orderCreated
             ? "An order was created."
             : "No order was created.";

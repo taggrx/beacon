@@ -219,6 +219,7 @@ export const ApiGenerator = (
                             amount: IDL.Nat,
                             price: IDL.Nat,
                             executed: IDL.Nat64,
+                            timestamp: IDL.Nat64,
                         }),
                     ),
                 ],

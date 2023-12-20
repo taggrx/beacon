@@ -34,7 +34,7 @@ impl OrderType {
 pub struct Order {
     owner: Principal,
     amount: Tokens,
-    price: E8sPerToken,
+    pub price: E8sPerToken,
     timestamp: Timestamp,
     executor: Option<Principal>,
     executed: Timestamp,
@@ -518,8 +518,8 @@ mod tests {
         assert_eq!(o2.cmp(&o1), Ordering::Less);
         let mut o3 = o1.clone();
         assert_eq!(o3.cmp(&o1), Ordering::Equal);
-        o3.timestamp = o3.timestamp - 1;
-        assert_eq!(o3.cmp(&o1), Ordering::Less);
+        o3.timestamp = o3.timestamp + 1;
+        assert_eq!(o3.cmp(&o1), Ordering::Greater);
     }
 
     #[test]

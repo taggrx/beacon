@@ -34,13 +34,9 @@ const root = createRoot(document.getElementById("app") as Element);
 const App = () => {
     const [param] = parseHash();
 
-    let content = null;
+    let content = <Landing />;
 
-    if (param == "icp") {
-        {
-            /* content = <IcpWallet />; */
-        }
-    } else if (typeof param == "string") {
+    if (typeof param == "string") {
         content = <Token tokenId={param} />;
     }
     if (content)
@@ -50,26 +46,13 @@ const App = () => {
                 {content}
             </>,
         );
-    root.render(
-        <div className="text_centered">
-            <h1 className="logo">BEACON</h1>
-            <h2>
-                <s>Immutable</s> Order-Book Based Exchange
-            </h2>
-            - daily total volume - canister balance - most popular tokens
-            <br />
-            <br />
-            {window.principalId && <Wallet />}
-            {!window.principalId && <ConnectButton />}
-        </div>,
-    );
+    root.render(<Landing />);
 };
 
 import { AuthClient } from "@dfinity/auth-client";
 import { Header } from "./header";
 import { Metadata } from "./types";
-import { ConnectButton } from "./common";
-import { Wallet } from "./wallet";
+import { Landing } from "./landing";
 AuthClient.create({ idleOptions: { disableIdle: true } }).then(
     async (authClient) => {
         window.authClient = authClient;

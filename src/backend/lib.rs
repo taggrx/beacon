@@ -1,5 +1,6 @@
 use icrc1::Account;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::time::Duration;
 use std::{cell::RefCell, collections::VecDeque};
 
@@ -48,6 +49,28 @@ fn token() {
 #[export_name = "canister_query tokens"]
 fn tokens() {
     read(|state| reply(state.tokens()));
+}
+
+#[export_name = "canister_query prices"]
+fn prices() {
+    read(|state| {
+        reply(
+            state
+                .tokens()
+                .keys()
+                .map(|token_id| {
+                    (
+                        token_id,
+                        state
+                            .order_archive
+                            .get(&token_id)
+                            .map(|archive| archive.front().map(|order| order.price))
+                            .unwrap_or_default(),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>(),
+        )
+    });
 }
 
 #[derive(Serialize)]
