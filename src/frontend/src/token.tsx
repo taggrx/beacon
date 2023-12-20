@@ -1,19 +1,15 @@
 import * as React from "react";
 import { Metadata, Order, OrderType, Result } from "./types";
 import { Principal } from "@dfinity/principal";
-import {
-    Button,
-    Error,
-    PAYMENT_TOKEN_ID,
-    bigScreen,
-    token,
-    tokenFee,
-} from "./common";
+import { Button, Error, PAYMENT_TOKEN_ID, token, tokenFee } from "./common";
 import { Listing } from "./listing";
 
 export const Token = ({ tokenId }: { tokenId: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
     const [heartbeat, setHeartbeat] = React.useState(new Date());
+    const [orderCreation, setOrderCreation] = React.useState<OrderType | null>(
+        null,
+    );
     const loadData = async (tokenId: string) => {
         const [metadata] = await Promise.all([
             await window.api.query<Result<Metadata>>("token", tokenId),
@@ -47,24 +43,37 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 <code className="max_width_col">{symbol}</code>
             </h1>
             <OrderBook tokenId={tokenId} heartbeat={heartbeat} />
-            <div
-                className={
-                    bigScreen() ? "two_columns_grid" : "column_container"
-                }
-            >
+            {orderCreation && (
                 <OrderMask
                     tokenId={tokenId}
                     symbol={symbol}
-                    orderType={OrderType.Buy}
+                    orderType={orderCreation}
                     callback={callback}
+                    cancelCallback={() => setOrderCreation(null)}
                 />
-                <OrderMask
-                    tokenId={tokenId}
-                    symbol={symbol}
-                    orderType={OrderType.Sell}
-                    callback={callback}
-                />
-            </div>
+            )}
+            {!orderCreation && (
+                <div className="row_container">
+                    {[OrderType.Buy, OrderType.Sell].map((type, i) => (
+                        <button
+                            key={i}
+                            style={{
+                                color: "white",
+                                background:
+                                    type == OrderType.Buy ? "green" : "red",
+                            }}
+                            className={`max_width_col ${
+                                type == OrderType.Buy
+                                    ? "right_half_spaced"
+                                    : "left_half_spaced"
+                            }`}
+                            onClick={() => setOrderCreation(type)}
+                        >
+                            {type.toString().toUpperCase()}
+                        </button>
+                    ))}
+                </div>
+            )}
         </>
     );
 };
@@ -105,8 +114,17 @@ const OrderBook = ({
                 style={{
                     alignItems:
                         orderType == OrderType.Buy ? "flex-end" : "flex-start",
+                    paddingLeft: orderType == OrderType.Sell ? "0.4em" : "0",
+                    paddingRight: orderType == OrderType.Buy ? "0.4em" : "0",
                 }}
             >
+                <h3
+                    style={{
+                        color: orderType == OrderType.Buy ? "green" : "red",
+                    }}
+                >
+                    {orderType == OrderType.Buy ? "BUYERS" : "SELLERS"}
+                </h3>
                 {orders.map((order, i) => (
                     <div
                         key={i}
@@ -118,25 +136,28 @@ const OrderBook = ({
                                     ? "flex-end"
                                     : "flex-start",
                             fontSize: "xx-small",
-                            paddingLeft:
-                                orderType == OrderType.Sell ? "0.6em" : "0",
-                            paddingRight:
-                                orderType == OrderType.Buy ? "0.6em" : "0",
                             color: orderType == OrderType.Buy ? "green" : "red",
                             boxSizing: "border-box",
                         }}
                     >
-                        {token(
-                            BigInt(
-                                Number(order.price) *
-                                    Math.pow(
-                                        10,
-                                        window.tokenData[tokenId].decimals,
-                                    ),
-                            ),
-                            window.tokenData[PAYMENT_TOKEN_ID].decimals,
-                        )}{" "}
-                        {window.tokenData[PAYMENT_TOKEN_ID].symbol}
+                        <div
+                            style={{
+                                paddingLeft: "0.5em",
+                                paddingRight: "0.5em",
+                            }}
+                        >
+                            {token(
+                                BigInt(
+                                    Number(order.price) *
+                                        Math.pow(
+                                            10,
+                                            window.tokenData[tokenId].decimals,
+                                        ),
+                                ),
+                                window.tokenData[PAYMENT_TOKEN_ID].decimals,
+                            )}{" "}
+                            {window.tokenData[PAYMENT_TOKEN_ID].symbol}
+                        </div>
                         <div
                             style={{
                                 width: `${
@@ -171,7 +192,6 @@ const OrderBook = ({
 
     return (
         <>
-            <h2>ORDER BOOK</h2>
             <div className="row_container">
                 {render(buyOrders, OrderType.Buy)}
                 {render(sellOrders, OrderType.Sell)}
@@ -185,11 +205,13 @@ const OrderMask = ({
     symbol,
     orderType,
     callback,
+    cancelCallback,
 }: {
     tokenId: string;
     symbol: string;
     orderType: OrderType;
     callback: () => void;
+    cancelCallback: () => void;
 }) => {
     const [amount, setAmount] = React.useState("0.0");
     const [price, setPrice] = React.useState("");
@@ -204,7 +226,6 @@ const OrderMask = ({
 
     return (
         <div className="column_container bottom_spaced max_width_col">
-            <h3>CREATE A {action} ORDER</h3>
             <div className="row_container vcentered bottom_spaced modal">
                 TOTAL
                 <input
@@ -232,37 +253,48 @@ const OrderMask = ({
                 {paymentToken.symbol}
             </div>
             {status && <span className="bottom_spaced">{status}</span>}
-            <Button
-                styleArg={{
-                    background: orderType == OrderType.Buy ? "green" : "red",
-                }}
-                label={`${price ? "LIMIT " : "MARKET "}${action} (FEE ${
-                    Number(window.data.fee) / 100
-                }%)`}
-                onClick={async () => {
-                    const parsedAmount = parseNumber(amount, tokenDecimals);
-                    if (parsedAmount == null) {
-                        setStatus(`🔴 Can't parse the amount "${amount}"`);
-                        return;
-                    }
-                    const parsedPrice = parseNumber(
-                        price,
-                        paymentToken.decimals,
-                    );
-                    if (parsedPrice == null) {
-                        setStatus(`🔴 Can't parse the price "${price}"`);
-                        return;
-                    }
-                    await executeOrder(
-                        tokenId,
-                        BigInt(parsedAmount),
-                        BigInt(parsedPrice / Math.pow(10, tokenDecimals)),
-                        orderType,
-                        setStatus,
-                    );
-                    callback();
-                }}
-            />
+            <div className="row_container">
+                <button
+                    className="max_width_col right_half_spaced"
+                    onClick={cancelCallback}
+                >
+                    CANCEL
+                </button>
+                <Button
+                    classNameArg="max_width_col left_half_spaced"
+                    styleArg={{
+                        color: "white",
+                        background:
+                            orderType == OrderType.Buy ? "green" : "red",
+                    }}
+                    label={`${price ? "LIMIT " : "MARKET "}${action} (FEE ${
+                        Number(window.data.fee) / 100
+                    }%)`}
+                    onClick={async () => {
+                        const parsedAmount = parseNumber(amount, tokenDecimals);
+                        if (parsedAmount == null) {
+                            setStatus(`🔴 Can't parse the amount "${amount}"`);
+                            return;
+                        }
+                        const parsedPrice = parseNumber(
+                            price,
+                            paymentToken.decimals,
+                        );
+                        if (parsedPrice == null) {
+                            setStatus(`🔴 Can't parse the price "${price}"`);
+                            return;
+                        }
+                        await executeOrder(
+                            tokenId,
+                            BigInt(parsedAmount),
+                            BigInt(parsedPrice / Math.pow(10, tokenDecimals)),
+                            orderType,
+                            setStatus,
+                        );
+                        callback();
+                    }}
+                />
+            </div>
         </div>
     );
 };

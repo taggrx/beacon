@@ -21,8 +21,6 @@ export const token = (amount: BigInt, decimals: number) => {
     return parseFloat(`${a}.${b}`);
 };
 
-export const bigScreen = () => window.innerWidth >= 1024;
-
 export const tokenFee = (tokenId: string) =>
     BigInt(window.tokenData[tokenId].fee);
 
