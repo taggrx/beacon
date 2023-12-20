@@ -1,7 +1,14 @@
 import * as React from "react";
 import { Metadata, Order, OrderType, Result } from "./types";
 import { Principal } from "@dfinity/principal";
-import { Button, Error, PAYMENT_TOKEN_ID, token, tokenFee } from "./common";
+import {
+    Button,
+    Error,
+    PAYMENT_TOKEN_ID,
+    bigScreen,
+    token,
+    tokenFee,
+} from "./common";
 import { Listing } from "./listing";
 
 export const Token = ({ id }: { id: string }) => {
@@ -40,13 +47,28 @@ export const Token = ({ id }: { id: string }) => {
                 />
                 <code className="max_width_col">{symbol}</code>
             </h1>
-            <BuyOrderMask id={id} symbol={symbol} />
+            <div
+                className={
+                    bigScreen() ? "two_columns_grid" : "column_container"
+                }
+            >
+                <OrderMask id={id} symbol={symbol} orderType={OrderType.Buy} />
+                <OrderMask id={id} symbol={symbol} orderType={OrderType.Sell} />
+            </div>
             <OrderBook sellers={sellOrders} buyers={buyOrders} />
         </>
     );
 };
 
-const BuyOrderMask = ({ id, symbol }: { id: string; symbol: string }) => {
+const OrderMask = ({
+    id,
+    symbol,
+    orderType,
+}: {
+    id: string;
+    symbol: string;
+    orderType: OrderType;
+}) => {
     const [amount, setAmount] = React.useState("0.0");
     const [price, setPrice] = React.useState("");
     const [status, setStatus] = React.useState("");
@@ -56,11 +78,12 @@ const BuyOrderMask = ({ id, symbol }: { id: string; symbol: string }) => {
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
 
     React.useEffect(() => setStatus(""), [price, amount]);
+    const action = orderType.toString().toUpperCase();
 
     return (
-        <div className="column_container">
-            <h3>CREATE BUY ORDER</h3>
-            <div className="row_container vcentered bottom_half_spaced modal">
+        <div className="column_container bottom_spaced max_width_col">
+            <h3>CREATE A {action} ORDER</h3>
+            <div className="row_container vcentered bottom_spaced modal">
                 TOTAL
                 <input
                     type="number"
@@ -71,23 +94,27 @@ const BuyOrderMask = ({ id, symbol }: { id: string; symbol: string }) => {
                 />
                 {symbol}
             </div>
-            <div className="row_container vcentered bottom_half_spaced modal">
+            <div className="row_container vcentered bottom_spaced modal">
                 LIMIT
                 <input
                     type="number"
-                    placeholder="MAX PRICE TO PAY"
+                    placeholder={
+                        orderType == OrderType.Buy
+                            ? "MAX PRICE TO PAY"
+                            : "MIN PRICE TO ASK"
+                    }
                     className="max_width_col"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                 />
                 {paymentToken.symbol}
             </div>
-            {status && <span className="bottom_half_spaced">{status}</span>}
+            {status && <span className="bottom_spaced">{status}</span>}
             <Button
                 styleArg={{
-                    background: "green",
+                    background: orderType == OrderType.Buy ? "green" : "red",
                 }}
-                label={`${price ? "LIMIT " : "MARKET "}BUY (FEE ${
+                label={`${price ? "LIMIT " : "MARKET "}${action} (FEE ${
                     Number(window.data.fee) / 100
                 }%)`}
                 onClick={async () => {
@@ -108,7 +135,7 @@ const BuyOrderMask = ({ id, symbol }: { id: string; symbol: string }) => {
                         id,
                         BigInt(parsedAmount),
                         BigInt(parsedPrice / Math.pow(10, tokenDecimals)),
-                        OrderType.Buy,
+                        orderType,
                         setStatus,
                     );
                 }}

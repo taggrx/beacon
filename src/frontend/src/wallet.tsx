@@ -96,7 +96,7 @@ const BalanceLine = ({
         callback();
     };
     return (
-        <div key={id} className="row_container vcentered bottom_half_spaced">
+        <div key={id} className="row_container vcentered bottom_spaced">
             {status && <span>{status}</span>}
             {!status && (
                 <>
