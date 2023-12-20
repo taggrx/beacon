@@ -1,4 +1,4 @@
-import { ConnectButton, PAYMENT_TOKEN_ID, token } from "./common";
+import { PAYMENT_TOKEN_ID, token } from "./common";
 import * as React from "react";
 
 export const Landing = ({}) => {
@@ -25,8 +25,6 @@ export const Landing = ({}) => {
                 </h3>
             </div>
             <br />
-            {!window.principalId && <ConnectButton />}
-            <br />
             <div
                 className="column_container"
                 style={{
@@ -38,7 +36,10 @@ export const Landing = ({}) => {
                 {Object.entries(window.tokenData)
                     .filter((entry) => entry[0] != PAYMENT_TOKEN_ID)
                     .map(([id, { symbol, logo }]) => (
-                        <div className="row_container vcentered bottom_spaced x_large">
+                        <div
+                            key={id}
+                            className="row_container vcentered bottom_spaced x_large"
+                        >
                             <div className="right_half_spaced vcentered">
                                 {logo ? (
                                     <img

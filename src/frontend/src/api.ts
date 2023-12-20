@@ -36,6 +36,14 @@ export type Backend = {
 
     executed_orders: (tokenId: Principal) => Promise<JsonValue>;
 
+    close_order: (
+        tokenId: Principal,
+        order_type: OrderType,
+        amount: bigint,
+        price: bigint,
+        timestamp: number,
+    ) => Promise<JsonValue>;
+
     trade: (
         tokenId: Principal,
         amount: bigint,
@@ -190,8 +198,52 @@ export const ApiGenerator = (
                             owner: IDL.Principal,
                             amount: IDL.Nat,
                             price: IDL.Nat,
+                            executed: IDL.Nat64,
+                            timestamp: IDL.Nat64,
                         }),
                     ),
+                ],
+                response,
+            )[0];
+        },
+
+        close_order: async (
+            tokenId: Principal,
+            orderType: OrderType,
+            amount: bigint,
+            price: bigint,
+            timestamp: number,
+        ): Promise<JsonValue> => {
+            const arg = IDL.encode(
+                [
+                    IDL.Principal,
+                    IDL.Variant({ Buy: IDL.Null, Sell: IDL.Null }),
+                    IDL.Nat,
+                    IDL.Nat,
+                    IDL.Nat64,
+                ],
+                [
+                    tokenId,
+                    { [orderType.toString()]: null },
+                    amount,
+                    price,
+                    timestamp,
+                ],
+            );
+            const response = await call_raw(canisterId, "close_order", arg);
+
+            if (!response) {
+                throw new Error("Call failed");
+            }
+            if ("Err" in response) {
+                throw new Error(`Error: ${response.Err}`);
+            }
+            return IDL.decode(
+                [
+                    IDL.Variant({
+                        Ok: IDL.Null,
+                        Err: IDL.Text,
+                    }),
                 ],
                 response,
             )[0];

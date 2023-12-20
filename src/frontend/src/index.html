@@ -76,7 +76,7 @@
             input,
             select,
             .modal {
-                border-radius: 10px;
+                border-radius: 7px;
             }
 
             #app {
@@ -136,30 +136,26 @@
                 text-align: center;
             }
 
+            .small_text {
+                font-size: small;
+            }
+
+            table,
+            tr,
+            td {
+                width: 100%;
+            }
+
             footer {
                 font-size: small;
                 margin-top: 3em;
                 margin-top: auto;
             }
 
-            @keyframes glow {
-                0% {
-                    text-shadow: 0 0 5px #6ac2c9;
-                    opacity: 1;
-                }
-                100% {
-                    text-shadow:
-                        0 0 20px #6ac2c9,
-                        0 0 30px #6ac2c9,
-                        0 0 40px #6ac2c9;
-                    opacity: 1;
-                }
-            }
-
             .logo {
+                text-shadow: 0 0 10px #4aa2a9;
                 color: #6ac2c9;
                 cursor: pointer;
-                animation: glow 3s ease-in-out infinite alternate;
             }
 
             input {
@@ -200,11 +196,11 @@
         </style>
     </head>
     <body class="column_container">
-        <div id="app">
+        <div id="app" className="bottom_spaced">
             <div class="text_centered">
                 <h1 class="logo">BEACON</h1>
                 <h2><s>Immutable</s> Order-Book Based Exchange</h2>
-                <h4 style="opacity: 0.4; color: red">ALPHA VERSION</h4>
+                <h4 style="color: red">ALPHA VERSION</h4>
                 LOADING...
             </div>
         </div>

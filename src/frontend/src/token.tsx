@@ -4,6 +4,13 @@ import { Principal } from "@dfinity/principal";
 import { Button, Error, PAYMENT_TOKEN_ID, token, tokenFee } from "./common";
 import { Listing } from "./listing";
 
+const orderId = (order: Order) =>
+    order.owner.toString() +
+    order.price.toString() +
+    order.timestamp +
+    order.amount +
+    order.executed;
+
 export const Token = ({ tokenId }: { tokenId: string }) => {
     const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
     const [executedOrders, setExecutedOrders] = React.useState<Order[]>([]);
@@ -62,7 +69,6 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     </code>
                 )}
             </h1>
-            <OrderBook tokenId={tokenId} heartbeat={heartbeat} />
             {orderCreation && (
                 <OrderMask
                     tokenId={tokenId}
@@ -94,21 +100,14 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     ))}
                 </div>
             )}
+            <OrderBook tokenId={tokenId} heartbeat={heartbeat} />
             {executedOrders.length > 0 && (
                 <>
                     <h2>Executed Orders</h2>
-                    <table style={{ fontSize: "small", width: "100%" }}>
+                    <table className="small_text" style={{ width: "100%" }}>
                         <tbody>
                             {executedOrders.map((order) => (
-                                <tr
-                                    key={
-                                        order.owner.toString() +
-                                        order.price.toString() +
-                                        order.timestamp +
-                                        order.amount +
-                                        order.executed
-                                    }
-                                >
+                                <tr key={orderId(order)}>
                                     <td>
                                         {new Date(
                                             Number(order.executed) / 1000000,
@@ -173,8 +172,56 @@ const OrderBook = ({
         .concat(sellOrders)
         .reduce((acc, order) => Math.max(acc, Number(order.amount)), 0);
 
-    const render = (orders: Order[], orderType: OrderType) => {
-        return (
+    const filter = (order: Order) =>
+        order.owner.toString() == window.principalId?.toString();
+    const userOrders = {
+        buy: buyOrders.filter(filter),
+        sell: sellOrders.filter(filter),
+    };
+
+    const tokenData = window.tokenData[tokenId];
+    const paymentTokenDataData = window.tokenData[PAYMENT_TOKEN_ID];
+
+    const userOrdersList = (orders: Order[], type: OrderType) =>
+        orders.map((order) => (
+            <tr
+                key={orderId(order)}
+                className="row_container small_text vcentered"
+            >
+                <td
+                    style={{
+                        color: type == OrderType.Buy ? "green" : "red",
+                    }}
+                >
+                    {type.toString().toUpperCase()}
+                </td>
+                <td>
+                    {token(order.amount, tokenData.decimals)} {tokenData.symbol}
+                </td>
+                <td>
+                    {token(order.price, paymentTokenDataData.decimals)}{" "}
+                    {paymentTokenDataData.symbol}
+                </td>
+                <td style={{ textAlign: "right" }}>
+                    <Button
+                        onClick={async () => {
+                            await window.api.close_order(
+                                Principal.fromText(tokenId),
+                                type,
+                                order.amount,
+                                order.price,
+                                order.timestamp,
+                            );
+                            await loadData();
+                        }}
+                        label="CLOSE"
+                    />
+                </td>
+            </tr>
+        ));
+
+    const render = (orders: Order[], orderType: OrderType) =>
+        orders.length == 0 ? null : (
             <div
                 className="column_container max_width_col bottom_spaced"
                 style={{
@@ -248,7 +295,6 @@ const OrderBook = ({
                 ))}
             </div>
         );
-    };
 
     return (
         <>
@@ -256,6 +302,18 @@ const OrderBook = ({
                 {render(buyOrders, OrderType.Buy)}
                 {render(sellOrders, OrderType.Sell)}
             </div>
+            {(userOrders.buy.length > 0 || userOrders.sell.length > 0) && (
+                <>
+                    <h3>YOUR PENDING ORDERS</h3>
+                    <table>
+                        <tbody>
+                            {userOrdersList(userOrders.buy, OrderType.Buy)}
+                            {userOrdersList(userOrders.sell, OrderType.Sell)}
+                        </tbody>
+                    </table>
+                    <br />
+                </>
+            )}
         </>
     );
 };

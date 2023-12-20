@@ -32,6 +32,13 @@ export const Wallet = ({}) => {
                     value={window.principalId.toString()}
                 />
                 <Button label="REFRESH" onClick={window.refreshBackendData} />
+                <Button
+                    label="LOGOUT"
+                    onClick={async () => {
+                        await window.authClient.logout();
+                        location.reload();
+                    }}
+                />
             </div>
         </div>
     );

@@ -55,6 +55,7 @@ export const Button = ({
 export const ConnectButton = ({}) => (
     <button
         className="active"
+        style={{ background: "#6ac2c9", color: "#111111" }}
         onClick={() =>
             window.authClient.login({
                 onSuccess: () => location.reload(),
