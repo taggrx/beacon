@@ -19,8 +19,6 @@ export const Landing = ({}) => {
     }, []);
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
 
-    console.log(stats);
-
     return (
         <div>
             <div className="text_centered">

@@ -64,7 +64,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         window.api = ApiGenerator(process.env.CANISTER_ID || "", identity);
 
         window.refreshBackendData = async () => {
-            console.log("Fetching data...");
             const [data, tokenData, internalBalances]: any = await Promise.all([
                 window.api.query<Data>("params"),
                 window.api.query<{ [key: string]: Metadata }>("tokens"),

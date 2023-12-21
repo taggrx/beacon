@@ -1,11 +1,11 @@
 {
     "canisters": {
-        "barebones": {
-            "candid": "src/backend/barebones.did",
-            "package": "barebones",
+        "beacon": {
+            "candid": "src/backend/beacon.did",
+            "package": "beacon",
             "type": "custom",
-            "wasm": "target/wasm32-unknown-unknown/release/barebones.wasm.gz",
-            "build": "./build.sh barebones"
+            "wasm": "target/wasm32-unknown-unknown/release/beacon.wasm.gz",
+            "build": "./build.sh beacon"
         }
     },
     "networks": {
