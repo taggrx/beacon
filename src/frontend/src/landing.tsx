@@ -1,3 +1,4 @@
+import { Principal } from "@dfinity/principal";
 import { PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
 import * as React from "react";
 
@@ -89,6 +90,22 @@ export const Landing = ({}) => {
                             </code>
                         </div>
                     ))}
+                <br />
+                <button
+                    onClick={() => {
+                        try {
+                            const id = Principal.fromText(
+                                prompt("Enter the canister id:") || "",
+                            );
+                            if (!id) return;
+                            location.href = `#/${id.toString()}`;
+                        } catch (e) {
+                            alert(e);
+                        }
+                    }}
+                >
+                    LIST YOUR TOKEN NOW!
+                </button>
             </div>
         </div>
     );

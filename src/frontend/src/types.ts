@@ -18,6 +18,7 @@ export type Metadata = {
     fee: bigint;
     decimals: number;
     logo: string;
+    realm: string;
 };
 
 export enum OrderType {

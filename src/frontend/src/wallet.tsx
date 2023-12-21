@@ -63,6 +63,10 @@ export const Wallet = ({}) => {
                 <>
                     <h3>FUNDS ON BEACON</h3>
                     {internalRenderedBalances}
+                </>
+            )}
+            {lockedRenderedBalances.length > 0 && (
+                <>
                     <h4>LOCKED IN ORDERS</h4>
                     {lockedRenderedBalances}
                 </>

@@ -377,22 +377,31 @@ async fn register_token(token: TokenId) -> Result<(), String> {
         metadata.get("icrc1:fee"),
         metadata.get("icrc1:decimals"),
         metadata.get("icrc1:logo"),
+        metadata.get("taggr:realm"),
     ) {
-        (Some(Value::Text(symbol)), Some(Value::Nat(fee)), Some(Value::Nat(decimals)), logo) => {
-            mutate(|state| {
-                state.add_token(
-                    token,
-                    symbol.clone(),
-                    *fee,
-                    *decimals as u32,
-                    match logo {
-                        Some(Value::Text(hex)) => Some(hex.clone()),
-                        _ => None,
-                    },
-                );
-                Ok(())
-            })
-        }
+        (
+            Some(Value::Text(symbol)),
+            Some(Value::Nat(fee)),
+            Some(Value::Nat(decimals)),
+            logo,
+            realm,
+        ) => mutate(|state| {
+            state.add_token(
+                token,
+                symbol.clone(),
+                *fee,
+                *decimals as u32,
+                match logo {
+                    Some(Value::Text(hex)) => Some(hex.clone()),
+                    _ => None,
+                },
+                match realm {
+                    Some(Value::Text(name)) => Some(name.clone()),
+                    _ => None,
+                },
+            );
+            Ok(())
+        }),
         (symbol, fee, decimals, _) => Err(format!(
             "one of the required values missing: symbol={:?}, fee={:?}, decimals={:?}",
             symbol, fee, decimals

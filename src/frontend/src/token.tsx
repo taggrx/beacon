@@ -31,7 +31,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         if (tokenId) loadData(tokenId);
     }, []);
 
-    if (!metadata) return <Error text="something went wrong." />;
+    if (!metadata) return <Error text="No token found." />;
 
     if ("Err" in metadata) {
         return <Listing tokenId={tokenId} />;

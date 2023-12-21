@@ -95,6 +95,7 @@ pub struct Metadata {
     pub fee: Tokens,
     pub decimals: u32,
     pub logo: Option<String>,
+    pub realm: Option<String>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -314,6 +315,7 @@ impl State {
         fee: Tokens,
         decimals: u32,
         logo: Option<String>,
+        realm: Option<String>,
     ) {
         self.tokens.insert(
             id,
@@ -322,6 +324,7 @@ impl State {
                 logo,
                 fee,
                 decimals,
+                realm,
             },
         );
         self.pools.insert(id, Default::default());
