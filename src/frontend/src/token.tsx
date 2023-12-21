@@ -70,6 +70,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     </code>
                 )}
             </h1>
+            <Chart
+                prices={executedOrders.map((order) => Number(order.price))}
+            />
             {orderCreation && (
                 <OrderMask
                     tokenId={tokenId}
@@ -127,7 +130,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                             tokenData.decimals,
                                         )}
                                     </td>
-                                    <td>{tokenData.symbol}</td>
+                                    <td style={{ textAlign: "right" }}>
+                                        {tokenData.symbol}
+                                    </td>
                                     <td style={{ textAlign: "right" }}>
                                         {token(
                                             humanReadablePrice(
@@ -137,7 +142,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                             paymentTokenDataData.decimals,
                                         )}
                                     </td>
-                                    <td>{paymentTokenDataData.symbol}</td>
+                                    <td style={{ textAlign: "right" }}>
+                                        {paymentTokenDataData.symbol}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -145,5 +152,69 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 </>
             )}
         </>
+    );
+};
+
+const Chart = ({ prices }: { prices: number[] }) => {
+    prices.reverse();
+    const chartRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (!chartRef.current) return;
+        const canvas = chartRef.current as unknown as HTMLCanvasElement;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let yMax = Math.max(...prices);
+        let yMin = Math.min(...prices);
+        const scale = Math.max(...prices) - Math.min(...prices);
+
+        const data = prices.map(
+            (value: number) => ((value - yMin) / scale) * 100,
+        );
+
+        yMax = Math.max(...data);
+
+        const xScale = canvas.width / (data.length - 1);
+        const yScale = canvas.height / yMax;
+
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#6ac2c9";
+        ctx.font = "18px JetBrains Mono";
+        ctx.fillStyle = "white";
+
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height - data[0] * yScale);
+        for (let i = 1; i < data.length; i++) {
+            const x = i * xScale;
+            const y = canvas.height - data[i] * yScale;
+            ctx.lineTo(x, y);
+            ctx.fillText(
+                token(BigInt(Math.floor(data[i])), 8).toString(),
+                x - 15,
+                Math.max(y + 20, 0),
+            );
+        }
+        ctx.stroke();
+    }, [prices]);
+
+    return (
+        <div
+            className="row_container top_spaced bottom_spaced"
+            style={{ justifyContent: "center" }}
+        >
+            <canvas
+                width={1024}
+                height={400}
+                style={{
+                    width: "100%",
+                    maxWidth: "700px",
+                }}
+                ref={chartRef}
+            ></canvas>
+        </div>
     );
 };
