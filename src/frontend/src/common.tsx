@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Order } from "./types";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
 export const PAYMENT_TOKEN_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
@@ -24,23 +25,40 @@ export const token = (amount: BigInt, decimals: number) => {
 export const tokenFee = (tokenId: string) =>
     BigInt(window.tokenData[tokenId].fee);
 
+export const bigScreen = () => window.innerWidth >= 1024;
+
+export const humanReadablePrice = (price: bigint, tokenId: string) =>
+    BigInt(Number(price) * Math.pow(10, window.tokenData[tokenId].decimals));
+
+export const orderId = (order: Order) =>
+    order.owner.toString() +
+    order.price.toString() +
+    order.timestamp +
+    order.amount +
+    order.executed;
+
 export const Button = ({
     onClick,
     classNameArg,
-    styleArg,
+    styleArg = {},
     label,
+    disabled,
 }: {
     classNameArg?: string;
     onClick: () => Promise<void>;
     styleArg?: { [key: string]: string };
     label: string;
+    disabled?: boolean;
 }) => {
     const [loading, setLoading] = React.useState(false);
+    const off = disabled || loading;
+    if (off) styleArg.opacity = "0.5";
+    else delete styleArg.opacity;
     return (
         <button
             style={styleArg}
             className={classNameArg}
-            disabled={loading}
+            disabled={off}
             onClick={async () => {
                 setLoading(true);
                 await onClick();
@@ -72,9 +90,11 @@ export const ConnectButton = ({}) => (
 export const CopyToClipboard = ({
     value,
     classNameArg,
+    displayMap = (id) => id,
 }: {
     value: string;
     classNameArg?: string;
+    displayMap?: (arg: string) => string;
 }) => {
     const [copied, setCopied] = React.useState(false);
     return (
@@ -88,12 +108,12 @@ export const CopyToClipboard = ({
                 setCopied(true);
             }}
         >
-            <code>{value} </code>
+            <code>{displayMap(value)} </code>
             {copied ? (
-                <>[copied!]</>
+                <>✅</>
             ) : (
                 <>
-                    [<span className="clickable">copy</span>]
+                    [<span className="clickable">COPY</span>]
                 </>
             )}
         </span>

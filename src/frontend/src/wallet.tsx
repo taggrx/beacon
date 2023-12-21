@@ -1,15 +1,58 @@
 import * as React from "react";
-import { Button, CopyToClipboard, token } from "./common";
+import { Button, CopyToClipboard, bigScreen, token } from "./common";
 import { Principal } from "@dfinity/principal";
 
 export const Wallet = ({}) => {
     const internalRenderedBalances = renderBalances(
-        window.internalBalances,
+        Object.entries(window.internalBalances).reduce(
+            (acc, [id, [balance]]) => {
+                acc[id] = balance;
+                return acc;
+            },
+            {} as { [id: string]: bigint },
+        ),
         "internal",
+    );
+    const lockedRenderedBalances = renderBalances(
+        Object.entries(window.internalBalances).reduce(
+            (acc, [id, [_, locked]]) => {
+                acc[id] = locked;
+                return acc;
+            },
+            {} as { [id: string]: bigint },
+        ),
+        "locked",
     );
     const renderedBalances = renderBalances(window.balances);
     return (
-        <div id="wallet" className="modal column_container">
+        <div id="wallet" className="modal column_container small_text">
+            <h2 className="row_container vcentered">
+                <span className="max_width_col">WALLET</span>
+                <Button label="REFRESH" onClick={window.refreshBackendData} />
+                <Button
+                    label="LOGOUT"
+                    onClick={async () => {
+                        await window.authClient.logout();
+                        location.reload();
+                    }}
+                />
+            </h2>
+            <div className="row_container vcentered">
+                <span className="max_width_col">PRINCIPAL:</span>
+                <CopyToClipboard
+                    value={window.principalId.toString()}
+                    displayMap={
+                        bigScreen()
+                            ? undefined
+                            : (value: string) => {
+                                  const parts = value.split("-");
+                                  return `${parts[0]}...${
+                                      parts[parts.length - 1]
+                                  }`;
+                              }
+                    }
+                />
+            </div>
             {renderedBalances.length > 0 && (
                 <>
                     <h3>FUNDS IN WALLET</h3>
@@ -20,34 +63,15 @@ export const Wallet = ({}) => {
                 <>
                     <h3>FUNDS ON BEACON</h3>
                     {internalRenderedBalances}
+                    <h4>LOCKED IN ORDERS</h4>
+                    {lockedRenderedBalances}
                 </>
             )}
-            <h3>PRINCIPAL</h3>
-            <div
-                style={{ fontSize: "small" }}
-                className="row_container vcentered"
-            >
-                <CopyToClipboard
-                    classNameArg="max_width_col"
-                    value={window.principalId.toString()}
-                />
-                <Button label="REFRESH" onClick={window.refreshBackendData} />
-                <Button
-                    label="LOGOUT"
-                    onClick={async () => {
-                        await window.authClient.logout();
-                        location.reload();
-                    }}
-                />
-            </div>
         </div>
     );
 };
 
-const renderBalances = (
-    balances: { [key: string]: bigint },
-    internal?: string,
-) =>
+const renderBalances = (balances: { [key: string]: bigint }, mark?: string) =>
     Object.entries(window.tokenData)
         .filter(([id]) => id in balances && balances[id] > 0)
         .map(([id, data]) => (
@@ -59,7 +83,7 @@ const renderBalances = (
                 balance={balances[id]}
                 decimals={data.decimals}
                 fee={data.fee}
-                internal={!!internal}
+                mark={mark}
             />
         ));
 
@@ -70,7 +94,7 @@ const BalanceLine = ({
     balance,
     decimals,
     fee,
-    internal,
+    mark,
 }: {
     id: string;
     logo: string;
@@ -78,7 +102,7 @@ const BalanceLine = ({
     balance: bigint;
     decimals: number;
     fee: bigint;
-    internal: boolean;
+    mark?: string;
 }) => {
     const [status, setStatus] = React.useState("");
     const showStatus = (msg: string) => {
@@ -110,26 +134,28 @@ const BalanceLine = ({
                     </span>
                     <div className="max_width_col"></div>
                     <code>{token(balance, decimals)}</code>
-                    <Button
-                        classNameArg="left_half_spaced"
-                        onClick={() =>
-                            internal
-                                ? withdrawToWallet(
-                                      id,
-                                      decimals,
-                                      callBackWithStatus,
-                                  )
-                                : withdrawToPrincipal(
-                                      id,
-                                      fee,
-                                      balance,
-                                      decimals,
-                                      symbol,
-                                      callBackWithStatus,
-                                  )
-                        }
-                        label="WITHDRAW"
-                    />
+                    {mark != "locked" && (
+                        <Button
+                            classNameArg="left_half_spaced"
+                            onClick={() =>
+                                mark == "internal"
+                                    ? withdrawToWallet(
+                                          id,
+                                          decimals,
+                                          callBackWithStatus,
+                                      )
+                                    : withdrawToPrincipal(
+                                          id,
+                                          fee,
+                                          balance,
+                                          decimals,
+                                          symbol,
+                                          callBackWithStatus,
+                                      )
+                            }
+                            label="WITHDRAW"
+                        />
+                    )}
                 </>
             )}
         </div>
