@@ -41,6 +41,18 @@ pub struct Order {
     executed: Timestamp,
 }
 
+impl Order {
+    fn reserved_liquidity(&self, order_type: OrderType) -> Tokens {
+        if order_type.buy() {
+            let volume = self.amount * self.price as u128;
+            let fee = trading_fee(volume);
+            volume + fee
+        } else {
+            self.amount
+        }
+    }
+}
+
 impl PartialOrd for Order {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(&other))
@@ -131,13 +143,7 @@ impl State {
             executor: None,
             executed: 0,
         };
-        let reserved_liquidity = if order_type.buy() {
-            let volume = order.amount * order.price as u128;
-            let fee = trading_fee(volume);
-            volume + fee
-        } else {
-            order.amount
-        };
+        let reserved_liquidity = order.reserved_liquidity(order_type);
         if orders.remove(&order) {
             self.add_liquidity(
                 user,
@@ -190,10 +196,45 @@ impl State {
         }
     }
 
-    pub fn token_balances(&self, principal: Principal) -> BTreeMap<TokenId, Tokens> {
-        self.pools
-            .iter()
-            .filter_map(|(id, pool)| pool.get(&principal).map(|balance| (*id, *balance)))
+    pub fn token_balances(&self, user: Principal) -> BTreeMap<TokenId, (Tokens, Tokens)> {
+        self.tokens
+            .keys()
+            .map(|token_id| {
+                (
+                    *token_id,
+                    (
+                        self.pools
+                            .get(&token_id)
+                            .and_then(|pool| pool.get(&user).copied())
+                            .unwrap_or_default(),
+                        if token_id == &PAYMENT_TOKEN_ID {
+                            self.orders
+                                .values()
+                                .flat_map(|book| {
+                                    book.buyers.iter().filter_map(|order| {
+                                        (order.owner == user)
+                                            .then_some(order.reserved_liquidity(OrderType::Buy))
+                                    })
+                                })
+                                .sum::<Tokens>()
+                        } else {
+                            self.orders
+                                .get(token_id)
+                                .map(|book| {
+                                    book.sellers
+                                        .iter()
+                                        .filter_map(|order| {
+                                            (order.owner == user).then_some(
+                                                order.reserved_liquidity(OrderType::Sell),
+                                            )
+                                        })
+                                        .sum::<Tokens>()
+                                })
+                                .unwrap_or_default()
+                        },
+                    ),
+                )
+            })
             .collect()
     }
 
@@ -314,13 +355,7 @@ impl State {
             .ok_or("no token found")?
             .get_mut(&user)
             .ok_or("no funds available")?;
-        let required_liquidity = if order_type.buy() {
-            let volume = amount * price as u128;
-            let fee = trading_fee(volume);
-            volume + fee
-        } else {
-            amount
-        };
+        let required_liquidity = order.reserved_liquidity(order_type);
         if required_liquidity > *token_balance {
             return Err("not enough funds available for this order size".into());
         }
@@ -575,7 +610,7 @@ mod tests {
             state.add_liquidity(pr(0), token, 111).unwrap();
             state.add_liquidity(pr(0), token, 222).unwrap();
 
-            assert_eq!(state.token_balances(pr(0)).get(&token).unwrap(), &333);
+            assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
 
             assert_eq!(
                 state.create_order(pr(0), token, 250, 0, 0, OrderType::Sell),
@@ -587,8 +622,8 @@ mod tests {
             );
 
             assert_eq!(
-                state.token_balances(pr(0)).get(&token).unwrap(),
-                &(333 - 250 - 50)
+                state.token_balances(pr(0)).get(&token).unwrap().0,
+                333 - 250 - 50
             );
             assert_eq!(
                 state.close_order(pr(0), token, 50, 0, 0, OrderType::Sell),
@@ -598,7 +633,7 @@ mod tests {
                 state.close_order(pr(0), token, 250, 0, 0, OrderType::Sell),
                 Ok(())
             );
-            assert_eq!(state.token_balances(pr(0)).get(&token).unwrap(), &(333));
+            assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
 
             state
                 .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 10000000)
@@ -614,7 +649,8 @@ mod tests {
                     .token_balances(pr(0))
                     .get(&PAYMENT_TOKEN_ID)
                     .copied()
-                    .unwrap(),
+                    .unwrap()
+                    .0,
                 8 * 10000000 - volume - trading_fee(volume)
             );
 
@@ -633,7 +669,8 @@ mod tests {
                     .token_balances(pr(0))
                     .get(&PAYMENT_TOKEN_ID)
                     .copied()
-                    .unwrap(),
+                    .unwrap()
+                    .0,
                 8 * 10000000 - volume - trading_fee(volume) - volume2 - trading_fee(volume2)
             );
             assert_eq!(
@@ -649,7 +686,8 @@ mod tests {
                     .token_balances(pr(0))
                     .get(&PAYMENT_TOKEN_ID)
                     .copied()
-                    .unwrap(),
+                    .unwrap()
+                    .0,
                 8 * 10000000
             );
         }
@@ -687,7 +725,7 @@ mod tests {
         state.add_liquidity(pr(0), token, 111).unwrap();
         state.add_liquidity(pr(0), token, 222).unwrap();
 
-        assert_eq!(state.token_balances(pr(0)).get(&token).unwrap(), &333);
+        assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
 
         assert_eq!(
             state.create_order(pr(0), token, 250, 0, 0, OrderType::Sell),
@@ -695,8 +733,8 @@ mod tests {
         );
 
         assert_eq!(
-            state.token_balances(pr(0)).get(&token).unwrap(),
-            &(333 - 250)
+            state.token_balances(pr(0)).get(&token).unwrap().0,
+            333 - 250
         );
 
         assert_eq!(user_orders(&state, token, pr(0), OrderType::Buy).count(), 0);

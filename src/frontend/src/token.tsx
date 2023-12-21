@@ -100,7 +100,11 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     ))}
                 </div>
             )}
-            <OrderBook tokenId={tokenId} heartbeat={heartbeat} />
+            <OrderBook
+                tokenId={tokenId}
+                heartbeat={heartbeat}
+                callback={callback}
+            />
             {executedOrders.length > 0 && (
                 <>
                     <h2>Executed Orders</h2>
@@ -146,9 +150,11 @@ const humanReadablePrice = (price: bigint, tokenId: string) =>
 const OrderBook = ({
     tokenId,
     heartbeat,
+    callback,
 }: {
     tokenId: string;
     heartbeat: any;
+    callback: () => void;
 }) => {
     const [buyOrders, setBuyOrders] = React.useState<Order[]>([]);
     const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
@@ -213,6 +219,7 @@ const OrderBook = ({
                                 order.timestamp,
                             );
                             await loadData();
+                            callback();
                         }}
                         label="CLOSE"
                     />
@@ -332,6 +339,7 @@ const OrderMask = ({
     cancelCallback: () => void;
 }) => {
     const [amount, setAmount] = React.useState("0.0");
+    const [blocked, setBlocked] = React.useState(false);
     const [price, setPrice] = React.useState("");
     const [status, setStatus] = React.useState("");
 
@@ -344,31 +352,35 @@ const OrderMask = ({
 
     return (
         <div className="column_container bottom_spaced max_width_col">
-            <div className="row_container vcentered bottom_spaced modal">
-                TOTAL
-                <input
-                    type="number"
-                    min="0"
-                    className="max_width_col"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                />
-                {symbol}
-            </div>
-            <div className="row_container vcentered bottom_spaced modal">
-                LIMIT
-                <input
-                    type="number"
-                    placeholder={
-                        orderType == OrderType.Buy
-                            ? "MAX PRICE TO PAY"
-                            : "MIN PRICE TO ASK"
-                    }
-                    className="max_width_col"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                />
-                {paymentToken.symbol}
+            <div style={{ opacity: blocked ? "0.5" : undefined }}>
+                <div className="row_container vcentered bottom_spaced modal">
+                    TOTAL
+                    <input
+                        type="number"
+                        disabled={blocked}
+                        min="0"
+                        className="max_width_col"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                    />
+                    {symbol}
+                </div>
+                <div className="row_container vcentered bottom_spaced modal">
+                    LIMIT
+                    <input
+                        disabled={blocked}
+                        type="number"
+                        placeholder={
+                            orderType == OrderType.Buy
+                                ? "MAX PRICE TO PAY"
+                                : "MIN PRICE TO ASK"
+                        }
+                        className="max_width_col"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                    />
+                    {paymentToken.symbol}
+                </div>
             </div>
             {status && <span className="bottom_spaced">{status}</span>}
             <div className="row_container">
@@ -387,6 +399,7 @@ const OrderMask = ({
                     }}
                     label={`${price ? "LIMIT " : "MARKET "}${action}`}
                     onClick={async () => {
+                        setBlocked(true);
                         const parsedAmount = parseNumber(amount, tokenDecimals);
                         if (parsedAmount == null) {
                             setStatus(`🔴 Can't parse the amount "${amount}"`);
@@ -408,6 +421,7 @@ const OrderMask = ({
                             setStatus,
                         );
                         callback();
+                        setBlocked(false);
                     }}
                 />
             </div>
