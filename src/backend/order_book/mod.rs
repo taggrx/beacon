@@ -34,10 +34,10 @@ impl OrderType {
 #[derive(CandidType, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Order {
     owner: Principal,
-    amount: Tokens,
+    pub amount: Tokens,
     pub price: E8sPerToken,
     timestamp: Timestamp,
-    executed: Timestamp,
+    pub executed: Timestamp,
 }
 
 impl Order {
@@ -109,6 +109,12 @@ pub struct State {
 }
 
 impl State {
+    pub fn payment_token_pool(&self) -> &BTreeMap<Principal, Tokens> {
+        self.pools
+            .get(&PAYMENT_TOKEN_ID)
+            .expect("no payment token pool")
+    }
+
     fn log(&mut self, message: String) {
         ic_cdk::println!("{}", &message);
         self.logs.push_front(message);
@@ -534,10 +540,6 @@ mod tests {
         )
     }
 
-    fn icp_pool(state: &State) -> &'_ BTreeMap<Principal, Tokens> {
-        state.pools.get(&PAYMENT_TOKEN_ID).unwrap()
-    }
-
     #[test]
     fn test_orderbook() {
         let mut o1 = Order {
@@ -820,7 +822,7 @@ mod tests {
             .is_ok());
 
         // buyer has 0.01 ICP left minus fee
-        assert_eq!(icp_pool(&state).get(&pr(2)).unwrap(), &937500);
+        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &937500);
 
         let buyer_orders = &state.orders.get(&token).unwrap().buyers;
         assert_eq!(
@@ -835,7 +837,7 @@ mod tests {
         assert_eq!(best_order.price, 10000000);
 
         // three buyers
-        assert_eq!(icp_pool(&state).len(), 3);
+        assert_eq!(state.payment_token_pool().len(), 3);
         let buyer_orders = &state.orders.get(&token).unwrap().buyers;
         // we have 3 orders
         assert_eq!(buyer_orders.len(), 3);
@@ -874,18 +876,21 @@ mod tests {
         assert_eq!(state.pools.get(&token).unwrap().get(&pr(0)).unwrap(), &5);
 
         // now seller should get a balance too, plus the fee acount
-        assert_eq!(icp_pool(&state).len(), 5);
+        assert_eq!(state.payment_token_pool().len(), 5);
         // seller has expected amount of ICP: 5 * 0.1 ICP - fee
         let volume = 50000000;
         let fee_per_side = trading_fee(volume);
         assert_eq!(
-            icp_pool(&state).get(&seller).unwrap(),
+            state.payment_token_pool().get(&seller).unwrap(),
             &(volume - fee_per_side)
         );
         // buyer should have previous amount - volume - fee;
-        assert_eq!(icp_pool(&state).get(&pr(0)).unwrap(), &9825000);
+        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &9825000);
         // fee account has 2 fees
-        assert_eq!(icp_pool(&state).get(&pr(255)).unwrap(), &(2 * fee_per_side));
+        assert_eq!(
+            state.payment_token_pool().get(&pr(255)).unwrap(),
+            &(2 * fee_per_side)
+        );
 
         // let's sell more
         // at that point we have buy orders: 25 @ 0.01, 16 @ 0.03, 2 @ 0.1
@@ -933,10 +938,13 @@ mod tests {
         let (v1, v2, v3) = (25 * 1000000, 16 * 3000000, 7 * 10000000);
         let fees = trading_fee(v1) + trading_fee(v2) + trading_fee(v3);
         assert_eq!(
-            icp_pool(&state).get(&seller).unwrap(),
+            state.payment_token_pool().get(&seller).unwrap(),
             &(v1 + v2 + v3 - fees)
         );
-        assert_eq!(icp_pool(&state).get(&pr(255)).unwrap(), &(2 * fees));
+        assert_eq!(
+            state.payment_token_pool().get(&pr(255)).unwrap(),
+            &(2 * fees)
+        );
     }
 
     #[test]
@@ -1015,7 +1023,7 @@ mod tests {
         state
             .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 3000000)
             .unwrap();
-        assert_eq!(icp_pool(&state).len(), 1);
+        assert_eq!(state.payment_token_pool().len(), 1);
         assert_eq!(
             state.trade(OrderType::Buy, buyer, token, 10, None, 123456),
             Ok(10)
@@ -1041,7 +1049,7 @@ mod tests {
         assert_eq!(state.pools.get(&token).unwrap().get(&buyer).unwrap(), &10);
 
         // now seller should get a balance too, plus the fee acount
-        assert_eq!(icp_pool(&state).len(), 3);
+        assert_eq!(state.payment_token_pool().len(), 3);
 
         // let's buy more
         // at that point we have buy orders: 6 @ 0.03, 7 @ 0.05, 25 @ 1
@@ -1074,21 +1082,24 @@ mod tests {
         // all sellers got ICP
         let (v2, v1, v3) = (16 * 3000000, 7 * 5000000, 25 * 100000000);
         assert_eq!(
-            icp_pool(&state).get(&pr(0)).unwrap(),
+            state.payment_token_pool().get(&pr(0)).unwrap(),
             &(v1 - trading_fee(v1))
         );
         assert_eq!(
-            icp_pool(&state).get(&pr(1)).unwrap(),
+            state.payment_token_pool().get(&pr(1)).unwrap(),
             &(v2 - trading_fee(v2))
         );
         assert_eq!(
-            icp_pool(&state).get(&pr(2)).unwrap(),
+            state.payment_token_pool().get(&pr(2)).unwrap(),
             &(v3 - trading_fee(v3))
         );
 
         // executed orders: 16 @ 0.03, 7 @ 0.05, 25 @ 1
         let fees = trading_fee(v1) + trading_fee(v2) + trading_fee(v3);
-        assert_eq!(icp_pool(&state).get(&pr(255)).unwrap(), &(2 * fees));
+        assert_eq!(
+            state.payment_token_pool().get(&pr(255)).unwrap(),
+            &(2 * fees)
+        );
     }
 
     #[test]
@@ -1222,14 +1233,14 @@ mod tests {
         // two sellers got ICP
         let (v2, v1) = (16 * 3000000, 7 * 5000000);
         assert_eq!(
-            icp_pool(&state).get(&pr(0)).unwrap(),
+            state.payment_token_pool().get(&pr(0)).unwrap(),
             &(v1 - trading_fee(v1))
         );
         assert_eq!(
-            icp_pool(&state).get(&pr(1)).unwrap(),
+            state.payment_token_pool().get(&pr(1)).unwrap(),
             &(v2 - trading_fee(v2))
         );
-        assert_eq!(icp_pool(&state).get(&pr(2)), None);
+        assert_eq!(state.payment_token_pool().get(&pr(2)), None);
     }
 
     #[test]

@@ -192,6 +192,7 @@ const executeOrder = async (
             : "No order was created.";
         statusCallback(status);
     } catch (error) {
+        console.debug(error);
         const regex = /'(.*?)'/g;
         let errorMessage = regex.exec(`${error}`);
         statusCallback(

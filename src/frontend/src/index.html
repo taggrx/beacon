@@ -75,6 +75,7 @@
             button,
             input,
             select,
+            .dbcell,
             .modal {
                 border-radius: 7px;
             }
@@ -146,6 +147,27 @@
                 width: 100%;
             }
 
+            .dbcell {
+                display: flex;
+                flex-direction: column;
+                font-size: x-large;
+                text-align: center;
+            }
+
+            .dynamic_table {
+                display: grid;
+                row-gap: 2em;
+                column-gap: 0.5em;
+                grid-template-columns: auto auto auto auto;
+            }
+
+            .two_columns_grid {
+                display: grid;
+                row-gap: 1em;
+                column-gap: 0.5em;
+                grid-template-columns: 50% 50%;
+            }
+
             table {
                 table-layout: fixed;
             }
@@ -169,6 +191,7 @@
             }
 
             select,
+            .dbcell,
             .modal {
                 border: 1px solid #085057;
                 padding: 0.5em;

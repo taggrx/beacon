@@ -1,14 +1,17 @@
-import { PAYMENT_TOKEN_ID, token } from "./common";
+import { PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
 import * as React from "react";
 
 export const Landing = ({}) => {
     const [prices, setPrices] = React.useState<{ [name: string]: bigint }>({});
+    const [stats, setStats] = React.useState<{ [name: string]: any }>({});
 
     const loadData = async () => {
-        const prices = await window.api.query<{ [name: string]: bigint }>(
-            "prices",
-        );
+        const [prices, stats] = await Promise.all([
+            window.api.query<{ [name: string]: bigint }>("prices"),
+            window.api.query<{ [name: string]: any }>("stats"),
+        ]);
         if (prices) setPrices(prices);
+        if (stats) setStats(stats);
     };
 
     React.useEffect(() => {
@@ -16,14 +19,43 @@ export const Landing = ({}) => {
     }, []);
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
 
+    console.log(stats);
+
     return (
         <div>
             <div className="text_centered">
                 <h1 className="logo">BEACON</h1>
                 <h3>
-                    <s>Immutable</s> Order-Book Based Exchange
+                    <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
                 </h3>
             </div>
+            <br />
+            <div className={bigScreen() ? "dynamic_table" : "two_columns_grid"}>
+                <div className="dbcell">
+                    {paymentToken.symbol} LOCKED
+                    <code>
+                        {token(stats.icp_locked, paymentToken.decimals)}{" "}
+                    </code>
+                </div>
+                <div className="dbcell">
+                    24H TRADES
+                    <code>{stats.trades_day}</code>
+                </div>
+                <div className="dbcell">
+                    24H VOLUME
+                    <code>
+                        {token(stats.volume_day, paymentToken.decimals)}{" "}
+                        {paymentToken.symbol}
+                    </code>
+                </div>
+                <div className="dbcell">
+                    FEES
+                    <code>
+                        {token(window.data.fee, paymentToken.decimals)}%
+                    </code>
+                </div>
+            </div>
+            <br />
             <br />
             <div
                 className="column_container"
