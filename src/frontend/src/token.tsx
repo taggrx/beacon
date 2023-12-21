@@ -121,14 +121,14 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                             Number(order.executed) / 1000000,
                                         ).toLocaleString()}
                                     </td>
-                                    <td>
+                                    <td style={{ textAlign: "right" }}>
                                         {token(
                                             order.amount,
                                             tokenData.decimals,
                                         )}
                                     </td>
                                     <td>{tokenData.symbol}</td>
-                                    <td>
+                                    <td style={{ textAlign: "right" }}>
                                         {token(
                                             humanReadablePrice(
                                                 order.price,

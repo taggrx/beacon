@@ -16,7 +16,7 @@ export const OrderMask = ({
     callback: () => void;
     cancelCallback: () => void;
 }) => {
-    const [status, setStatus] = React.useState("");
+    const [status, setStatus] = React.useState<string | JSX.Element>("");
     const [blocked, setBlocked] = React.useState(false);
     const [price, setPrice] = React.useState("");
     const [amount, setAmount] = React.useState("0.0");
@@ -41,17 +41,23 @@ export const OrderMask = ({
         }
         setParsedPrice(parsedPrice);
         setStatus(
-            `${orderType.toString().toUpperCase()} ${token(
-                BigInt(parsedAmount),
-                tokenDecimals,
-            )} ${icrcToken.symbol} ` +
-                (parsedPrice == 0
-                    ? "AT MARKET PRICE"
-                    : `FOR ${token(
-                          BigInt(parsedPrice),
-                          paymentToken.decimals,
-                      )} ${paymentToken.symbol}`) +
-                ` (FEE ${Number(window.data.fee) / 100}%)`,
+            <span>
+                {orderType.toString().toUpperCase()}{" "}
+                <code>{token(BigInt(parsedAmount), tokenDecimals)}</code>{" "}
+                <u>{icrcToken.symbol}</u>{" "}
+                {parsedPrice == 0 ? (
+                    "AT MARKET PRICE"
+                ) : (
+                    <span>
+                        FOR{" "}
+                        <code>
+                            {token(BigInt(parsedPrice), paymentToken.decimals)}
+                        </code>{" "}
+                        <u>{paymentToken.symbol}</u>
+                    </span>
+                )}
+                {` (FEE ${Number(window.data.fee) / 100}%)`}
+            </span>,
         );
     }, [price, amount]);
     const action = orderType.toString().toUpperCase();
@@ -62,7 +68,6 @@ export const OrderMask = ({
                 <div className="row_container vcentered bottom_spaced modal">
                     TOTAL
                     <input
-                        type="number"
                         disabled={blocked}
                         min="0"
                         className="max_width_col"
@@ -77,7 +82,6 @@ export const OrderMask = ({
                     LIMIT
                     <input
                         disabled={blocked}
-                        type="number"
                         placeholder={
                             orderType == OrderType.Buy
                                 ? "BID PRICE"
@@ -93,7 +97,10 @@ export const OrderMask = ({
                 </div>
             </div>
             {status && parsedAmount > 0 && (
-                <span className="bottom_spaced" style={{ textAlign: "right" }}>
+                <span
+                    className="small_text bottom_spaced"
+                    style={{ textAlign: "right" }}
+                >
                     {status}
                 </span>
             )}
@@ -185,7 +192,11 @@ const executeOrder = async (
             : "No order was created.";
         statusCallback(status);
     } catch (error) {
-        statusCallback(`🔴 ${error}`);
+        const regex = /'(.*?)'/g;
+        let errorMessage = regex.exec(`${error}`);
+        statusCallback(
+            `🔴 Error: ${errorMessage?.length ? errorMessage[1] : error}`,
+        );
     }
 };
 
