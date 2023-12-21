@@ -44,7 +44,7 @@ pub struct Order {
 impl Order {
     fn reserved_liquidity(&self, order_type: OrderType) -> Tokens {
         if order_type.buy() {
-            let volume = self.amount * self.price as u128;
+            let volume = self.amount * self.price;
             let fee = trading_fee(volume);
             volume + fee
         } else {
@@ -55,7 +55,7 @@ impl Order {
 
 impl PartialOrd for Order {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
@@ -196,6 +196,7 @@ impl State {
         }
     }
 
+    /// Returns liquidity for each listed token together with the liquidity locked in orders.
     pub fn token_balances(&self, user: Principal) -> BTreeMap<TokenId, (Tokens, Tokens)> {
         self.tokens
             .keys()
@@ -204,7 +205,7 @@ impl State {
                     *token_id,
                     (
                         self.pools
-                            .get(&token_id)
+                            .get(token_id)
                             .and_then(|pool| pool.get(&user).copied())
                             .unwrap_or_default(),
                         if token_id == &PAYMENT_TOKEN_ID {
@@ -423,19 +424,11 @@ impl State {
                 amount - order.amount
             };
 
-            let (payment_receiver, token_receiver) = if trade_type.buy() {
-                (order.owner, trader)
-            } else {
-                (trader, order.owner)
-            };
-
             adjust_pools(
                 &mut self.pools,
-                payment_receiver,
-                token_receiver,
+                trader,
                 token,
-                order.amount,
-                order.amount * order.price,
+                &order,
                 self.revenue_account.unwrap(),
                 trade_type,
             )?;
@@ -467,32 +460,37 @@ impl State {
 
 fn adjust_pools(
     pools: &mut BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
-    payment_receiver: Principal,
-    token_receiver: Principal,
+    trader: Principal,
     token: TokenId,
-    amount: Tokens,
-    volume: E8s,
+    order: &Order,
     revenue_account: Principal,
     // since the liquidity is locked inside the order, we need to know where we should avoid
     // adjusting pools
     trade_type: OrderType,
 ) -> Result<(), String> {
+    let (payment_receiver, token_receiver) = if trade_type.buy() {
+        (order.owner, trader)
+    } else {
+        (trader, order.owner)
+    };
+
     let token_pool = pools.get_mut(&token).ok_or("no token pool found")?;
     // We only need to subtract token liquidity if we're executing a selling trade, becasue we
     // process buy orders
     if trade_type.sell() {
         let sellers_tokens = token_pool.entry(payment_receiver).or_insert(0);
         *sellers_tokens = sellers_tokens
-            .checked_sub(amount)
+            .checked_sub(order.amount)
             .ok_or("not enough tokens")?;
     }
 
     let buyers_tokens = token_pool.entry(token_receiver).or_insert(0);
-    *buyers_tokens += amount;
+    *buyers_tokens += order.amount;
 
     let icp_pool = pools
         .get_mut(&PAYMENT_TOKEN_ID)
         .ok_or("no icp pool found")?;
+    let volume = order.amount * order.price;
     let fee = trading_fee(volume);
 
     // We only need to subtract payment liquidity if we're executing a buying trade, becasue we
@@ -512,7 +510,7 @@ fn adjust_pools(
 }
 
 fn trading_fee(volume: E8s) -> u128 {
-    (volume * TX_FEE / 10000) as u128
+    volume * TX_FEE / 10000
 }
 
 #[cfg(test)]
@@ -573,7 +571,7 @@ mod tests {
         assert_eq!(o2.cmp(&o1), Ordering::Less);
         let mut o3 = o1.clone();
         assert_eq!(o3.cmp(&o1), Ordering::Equal);
-        o3.timestamp = o3.timestamp + 1;
+        o3.timestamp += 1;
         assert_eq!(o3.cmp(&o1), Ordering::Greater);
     }
 

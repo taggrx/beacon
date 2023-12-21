@@ -115,7 +115,7 @@ pub async fn transfer(
     let args = TransferArgs {
         from_subaccount,
         to,
-        amount: amount as u128,
+        amount,
         memo: None,
         fee: None,
         created_at_time: None,

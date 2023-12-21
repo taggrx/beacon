@@ -63,7 +63,7 @@ fn prices() {
                         token_id,
                         state
                             .order_archive
-                            .get(&token_id)
+                            .get(token_id)
                             .map(|archive| archive.front().map(|order| order.price))
                             .unwrap_or_default(),
                     )
@@ -336,7 +336,7 @@ async fn register_token(token: TokenId) -> Result<(), String> {
                 state.add_token(
                     token,
                     symbol.clone(),
-                    *fee as u128,
+                    *fee,
                     *decimals as u32,
                     match logo {
                         Some(Value::Text(hex)) => Some(hex.clone()),

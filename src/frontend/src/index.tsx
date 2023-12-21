@@ -22,7 +22,7 @@ declare global {
         data: Data;
         tokenData: { [key: string]: Metadata };
         internalBalances: {
-            [key: string]: bigint;
+            [key: string]: [bigint, bigint];
         };
         balances: { [key: string]: bigint };
         refreshBackendData: () => Promise<void>;
@@ -69,7 +69,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 window.api.query<Data>("params"),
                 window.api.query<{ [key: string]: Metadata }>("tokens"),
                 window.api.query<{
-                    [key: string]: bigint;
+                    [key: string]: [bigint, bigint];
                 }>("token_balances"),
             ]);
             window.data = data;
