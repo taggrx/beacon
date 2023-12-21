@@ -14,7 +14,7 @@ pub type TokenId = Principal;
 pub type E8sPerToken = u128;
 pub type E8s = u128;
 
-pub const TX_FEE: u128 = 25; // 0.25% per trade side
+pub const TX_FEE: u128 = 1; // 0.25% per trade side
 
 #[derive(CandidType, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum OrderType {
