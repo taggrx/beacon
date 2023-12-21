@@ -22,6 +22,10 @@ mod icrc1;
 mod order_book;
 mod xdr_rate;
 
+pub const MINUTE: u64 = 60000000000_u64;
+pub const HOUR: u64 = 60 * MINUTE;
+pub const DAY: u64 = 24 * HOUR;
+
 thread_local! {
     static STATE: RefCell<State> = Default::default();
 }

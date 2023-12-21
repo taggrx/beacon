@@ -37,7 +37,6 @@ pub struct Order {
     amount: Tokens,
     pub price: E8sPerToken,
     timestamp: Timestamp,
-    executor: Option<Principal>,
     executed: Timestamp,
 }
 
@@ -140,7 +139,6 @@ impl State {
             price,
             amount,
             timestamp,
-            executor: None,
             executed: 0,
         };
         let reserved_liquidity = order.reserved_liquidity(order_type);
@@ -342,7 +340,6 @@ impl State {
             amount,
             price,
             timestamp,
-            executor: None,
             executed: 0,
         };
         let order_book = self.orders.entry(token).or_default();
@@ -434,8 +431,8 @@ impl State {
             )?;
 
             filled += order.amount;
-            order.executor = Some(trader);
             order.executed = time;
+            order.owner = Principal::anonymous();
             archive.push_front(order);
 
             if amount == 0 {
@@ -548,7 +545,6 @@ mod tests {
             amount: 12,
             price: 0,
             timestamp: 111,
-            executor: None,
             executed: 0,
         };
         let mut o2 = Order {
@@ -556,7 +552,6 @@ mod tests {
             amount: 32,
             price: 0,
             timestamp: 111,
-            executor: None,
             executed: 0,
         };
 
@@ -872,7 +867,6 @@ mod tests {
         assert_eq!(archived_orders.len(), 1);
         let executed_order = archived_orders.front().unwrap();
         assert_eq!(executed_order.executed, 123456);
-        assert_eq!(executed_order.executor, Some(seller));
         // only 5 tokens got traded
         assert_eq!(executed_order.amount, 5);
 
@@ -1040,7 +1034,6 @@ mod tests {
         assert_eq!(archived_orders.len(), 1);
         let executed_order = archived_orders.front().unwrap();
         assert_eq!(executed_order.executed, 123456);
-        assert_eq!(executed_order.executor, Some(buyer));
         // only 5 tokens got traded
         assert_eq!(executed_order.amount, 10);
 
