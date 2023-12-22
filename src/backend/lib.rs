@@ -111,7 +111,11 @@ async fn deposit_liquidity(user: Principal, token: TokenId) -> Result<(), String
             wallet_balance,
         )
         .await
-        .map_err(|err| format!("transfer failed: {}", err))?;
+        .map_err(|err| {
+            let error = format!("deposit transfer failed: {}", err);
+            mutate(|state| state.log(error.clone()));
+            error
+        })?;
         mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, wallet_balance),
             Some((token, wallet_balance as i128)),

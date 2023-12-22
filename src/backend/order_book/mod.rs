@@ -168,7 +168,7 @@ impl State {
             .expect("no payment token pool")
     }
 
-    fn log(&mut self, message: String) {
+    pub fn log(&mut self, message: String) {
         ic_cdk::println!("{}", &message);
         let event_id = self.event_id;
         self.event_id += 1;

@@ -110,7 +110,11 @@ async fn withdraw(token_id: Principal) -> Result<u128, String> {
         amount,
     )
     .await
-    .map_err(|err| format!("transfer failed: {}", err))
+    .map_err(|err| {
+        let error = format!("withdraw transfer failed: {}", err);
+        mutate(|state| state.log(error.clone()));
+        error
+    })
     .map(|_| amount)
 }
 
