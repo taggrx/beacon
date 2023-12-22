@@ -37,7 +37,7 @@ export const Wallet = ({}) => {
                     }}
                 />
             </h2>
-            <div className="row_container vcentered">
+            <div className="row_container vcentered bottom_spaced">
                 <span className="max_width_col">PRINCIPAL:</span>
                 <CopyToClipboard
                     value={window.principalId.toString()}
@@ -67,7 +67,7 @@ export const Wallet = ({}) => {
             )}
             {lockedRenderedBalances.length > 0 && (
                 <>
-                    <h4>LOCKED IN ORDERS</h4>
+                    <h3>LOCKED IN ORDERS</h3>
                     {lockedRenderedBalances}
                 </>
             )}

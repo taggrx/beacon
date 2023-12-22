@@ -156,7 +156,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
 };
 
 const Chart = ({ prices }: { prices: number[] }) => {
-    if (prices.length == 0) return null;
+    if (prices.length < 5) return null;
 
     prices.reverse();
     const chartRef = React.useRef(null);
@@ -171,6 +171,7 @@ const Chart = ({ prices }: { prices: number[] }) => {
         let yMax = Math.max(...prices);
         let yMin = Math.min(...prices);
         const scale = Math.max(...prices) - Math.min(...prices);
+        if (scale == 0) return;
 
         const data = prices.map(
             (value: number) => ((value - yMin) / scale) * 100,
@@ -178,8 +179,9 @@ const Chart = ({ prices }: { prices: number[] }) => {
 
         yMax = Math.max(...data);
 
-        const xScale = canvas.width / (data.length - 1);
-        const yScale = canvas.height / yMax;
+        const margin = 50;
+        const xScale = (canvas.width - 2 * margin) / (data.length - 1);
+        const yScale = (canvas.height - 2 * margin) / yMax;
 
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
@@ -189,10 +191,10 @@ const Chart = ({ prices }: { prices: number[] }) => {
         ctx.fillStyle = "white";
 
         ctx.beginPath();
-        ctx.moveTo(0, canvas.height - data[0] * yScale);
+        ctx.moveTo(margin, canvas.height - margin - data[0] * yScale);
         for (let i = 1; i < data.length; i++) {
-            const x = i * xScale;
-            const y = canvas.height - data[i] * yScale;
+            const x = i * xScale + margin;
+            const y = canvas.height - margin - data[i] * yScale;
             ctx.lineTo(x, y);
             ctx.fillText(
                 token(BigInt(Math.floor(data[i])), 8).toString(),
@@ -213,7 +215,7 @@ const Chart = ({ prices }: { prices: number[] }) => {
                 height={400}
                 style={{
                     width: "100%",
-                    maxWidth: "700px",
+                    maxWidth: "1000px",
                 }}
                 ref={chartRef}
             ></canvas>
