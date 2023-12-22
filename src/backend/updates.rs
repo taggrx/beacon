@@ -95,6 +95,9 @@ async fn withdraw(token_id: Principal) -> Result<u128, String> {
     let user = caller();
     let fee = read(|state| state.token(token_id))?.fee;
     let existing_balance = read(|state| state.token_pool_balance(token_id, user));
+    if existing_balance <= fee {
+        return Err("amount smaller than the fee".into());
+    }
     let balance = mutate_with_invarant_check(
         |state| state.withdraw_liquidity(user, token_id),
         Some((token_id, -(existing_balance as i128))),

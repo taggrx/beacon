@@ -216,28 +216,6 @@ impl State {
         }
     }
 
-    fn remove_orders(
-        &mut self,
-        token: TokenId,
-        user: Principal,
-        order_type: OrderType,
-    ) -> Vec<Order> {
-        let orders = match self.orders.get_mut(&token).map(|book| match order_type {
-            OrderType::Buy => &mut book.buyers,
-            OrderType::Sell => &mut book.sellers,
-        }) {
-            None => return Default::default(),
-            Some(reference) => reference,
-        };
-        let result = orders
-            .iter()
-            .filter(|order| order.owner == user)
-            .cloned()
-            .collect();
-        orders.retain(|order| order.owner != user);
-        result
-    }
-
     pub fn orders(
         &self,
         token: TokenId,
@@ -347,35 +325,15 @@ impl State {
     }
 
     pub fn withdraw_liquidity(&mut self, user: Principal, id: TokenId) -> Result<Tokens, String> {
-        let fee = self.tokens.get(&id).ok_or("no token found")?.fee;
         let pool = self.pools.get_mut(&id).ok_or("no token found")?;
-        if fee > pool.get(&user).copied().unwrap_or_default() {
-            return Err("amount smaller than transaction fee".into());
-        }
-        let mut result = pool
+        let amount = pool
             .remove(&user)
-            .map(|tokens| tokens.saturating_sub(fee))
             .ok_or("nothing to withdraw".to_string())?;
-
-        let order_type = if id == PAYMENT_TOKEN_ID {
-            OrderType::Buy
-        } else {
-            OrderType::Sell
-        };
-
-        let liquidity_in_orders: Tokens = self
-            .remove_orders(id, user, order_type)
-            .into_iter()
-            .map(|order| order.amount)
-            .sum();
-
-        result += liquidity_in_orders;
-
         self.log(format!(
             "withdrew {} tokens from {} pool by {}",
-            result, id, user,
+            amount, id, user,
         ));
-        Ok(result)
+        Ok(amount)
     }
 
     fn add_token(
@@ -982,12 +940,12 @@ mod tests {
 
         assert_eq!(
             state.withdraw_liquidity(pr(1), token),
-            Err("amount smaller than transaction fee".into())
+            Err("nothing to withdraw".into())
         );
-        assert_eq!(state.withdraw_liquidity(pr(0), token), Ok(333 - 25));
+        assert_eq!(state.withdraw_liquidity(pr(0), token), Ok(333 - 250));
 
         let sell_orders = user_orders(state, token, pr(0), OrderType::Sell).collect::<Vec<_>>();
-        assert_eq!(sell_orders.len(), 0);
+        assert_eq!(sell_orders.len(), 1);
 
         let one_icp = 100000000;
         state
@@ -995,11 +953,11 @@ mod tests {
             .unwrap();
         assert_eq!(
             state.withdraw_liquidity(pr(1), PAYMENT_TOKEN_ID),
-            Err("amount smaller than transaction fee".into())
+            Err("nothing to withdraw".into())
         );
         assert_eq!(
             state.withdraw_liquidity(pr(0), PAYMENT_TOKEN_ID),
-            Ok((ic_ledger_types::Tokens::from_e8s(one_icp as u64) - DEFAULT_FEE).e8s() as u128)
+            Ok((ic_ledger_types::Tokens::from_e8s(one_icp as u64)).e8s() as u128)
         );
     }
 
