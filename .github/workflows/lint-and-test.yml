@@ -22,7 +22,7 @@ jobs:
 
       - name: Build canister
         run: |
-          ./build.sh barebones
+          ./build.sh beacon
 
       - name: Rust lint
         run: cargo clippy --tests --benches -- -D clippy::all

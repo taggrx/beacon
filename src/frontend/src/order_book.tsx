@@ -173,7 +173,7 @@ export const OrderBook = ({
             </div>
             {(userOrders.buy.length > 0 || userOrders.sell.length > 0) && (
                 <>
-                    <h3>YOUR PENDING ORDERS</h3>
+                    <h2>YOUR PENDING ORDERS</h2>
                     <table>
                         <tbody>
                             {userOrdersList(userOrders.buy, OrderType.Buy)}

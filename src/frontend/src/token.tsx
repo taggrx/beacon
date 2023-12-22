@@ -37,7 +37,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         return <Listing tokenId={tokenId} />;
     }
 
-    const { symbol, logo } = metadata.Ok;
+    const { symbol, logo, realm } = metadata.Ok;
     const callback = () => {
         window.refreshBackendData();
         setHeartbeat(new Date());
@@ -71,6 +71,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 )}
             </h1>
             <Chart
+                tokenId={tokenId}
                 prices={executedOrders.map((order) => Number(order.price))}
             />
             {orderCreation && (
@@ -111,7 +112,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
             />
             {executedOrders.length > 0 && (
                 <>
-                    <h2>Executed Orders</h2>
+                    <h2>EXECUTED ORDERS</h2>
                     <table
                         className="small_text bottom_spaced"
                         style={{ width: "100%" }}
@@ -151,11 +152,19 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     </table>
                 </>
             )}
+            <br />
+            <h2>{realm ? "REALM" : "MENTIONS"} ON TAGGR</h2>
+            <iframe
+                src={`https://6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app/#/${
+                    realm ? "realm/" + realm : "feed/" + symbol
+                }`}
+                title={`${symbol} on Taggr`}
+            />
         </>
     );
 };
 
-const Chart = ({ prices }: { prices: number[] }) => {
+const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
     if (prices.length < 5) return null;
 
     prices.reverse();
@@ -197,7 +206,10 @@ const Chart = ({ prices }: { prices: number[] }) => {
             const y = canvas.height - margin - data[i] * yScale;
             ctx.lineTo(x, y);
             ctx.fillText(
-                token(BigInt(Math.floor(data[i])), 8).toString(),
+                token(
+                    humanReadablePrice(BigInt(Math.floor(prices[i])), tokenId),
+                    window.tokenData[PAYMENT_TOKEN_ID].decimals,
+                ).toString(),
                 x - 15,
                 Math.max(y + 20, 0),
             );
