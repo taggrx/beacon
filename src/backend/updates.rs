@@ -3,7 +3,8 @@ use super::*;
 #[init]
 fn init() {
     kickstart();
-    set_timer(Duration::from_millis(1), || {
+    // register ICP as payment tokens
+    set_timer(Duration::from_millis(0), || {
         spawn(async {
             register_token(PAYMENT_TOKEN_ID)
                 .await

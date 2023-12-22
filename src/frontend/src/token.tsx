@@ -1,43 +1,34 @@
 import * as React from "react";
-import { Metadata, Order, OrderType, Result } from "./types";
+import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import {
-    Error,
-    PAYMENT_TOKEN_ID,
-    humanReadablePrice,
-    orderId,
-    token,
-} from "./common";
+import { PAYMENT_TOKEN_ID, humanReadablePrice, orderId, token } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
 import { OrderBook } from "./order_book";
 
 export const Token = ({ tokenId }: { tokenId: string }) => {
-    const [metadata, setMetadata] = React.useState<Result<Metadata> | null>();
     const [executedOrders, setExecutedOrders] = React.useState<Order[]>([]);
     const [heartbeat, setHeartbeat] = React.useState(new Date());
     const [orderCreation, setOrderCreation] = React.useState<OrderType | null>(
         null,
     );
     const loadData = async (tokenId: string) => {
-        const [metadata, executedOrders] = await Promise.all([
-            await window.api.query<Result<Metadata>>("token", tokenId),
-            await window.api.executed_orders(Principal.fromText(tokenId)),
-        ]);
-        setMetadata(metadata);
+        const executedOrders = await window.api.executed_orders(
+            Principal.fromText(tokenId),
+        );
         setExecutedOrders(executedOrders as unknown as any);
     };
     React.useEffect(() => {
         if (tokenId) loadData(tokenId);
     }, []);
 
-    if (!metadata) return <Error text="No token found." />;
+    const metadata = window.tokenData[tokenId];
 
-    if ("Err" in metadata) {
+    if (!metadata) {
         return <Listing tokenId={tokenId} />;
     }
 
-    const { symbol, logo, realm } = metadata.Ok;
+    const { symbol, logo, realm } = metadata;
     const callback = () => {
         window.refreshBackendData();
         setHeartbeat(new Date());
@@ -91,7 +82,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                             style={{
                                 color: "white",
                                 background:
-                                    type == OrderType.Buy ? "green" : "red",
+                                    type == OrderType.Buy
+                                        ? "#008800"
+                                        : "#cc0000",
                             }}
                             className={`max_width_col ${
                                 type == OrderType.Buy

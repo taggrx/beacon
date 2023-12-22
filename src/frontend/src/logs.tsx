@@ -39,7 +39,7 @@ export const Logs = ({}) => {
 const render = (log: string): JSX.Element[] =>
     log.split(" ").map((part: string) => {
         if (!isNaN(Number(part))) {
-            return <>Number(part).toLocaleString()</>;
+            return <code>{Number(part).toLocaleString()}</code>;
         }
         try {
             Principal.fromText(part);

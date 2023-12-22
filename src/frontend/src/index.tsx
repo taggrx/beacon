@@ -17,6 +17,9 @@ const parseHash = (): string[] => {
 type Data = {
     e8s_per_xdr: bigint;
     fee: bigint;
+    volume_day: bigint;
+    trades_day: number;
+    icp_locked: bigint;
 };
 
 declare global {
@@ -68,7 +71,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         window.refreshBackendData = async () => {
             const [data, tokenData, internalBalances]: any = await Promise.all([
-                window.api.query<Data>("params"),
+                window.api.query<Data>("data"),
                 window.api.query<{ [key: string]: Metadata }>("tokens"),
                 window.api.query<{
                     [key: string]: [bigint, bigint];

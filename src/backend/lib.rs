@@ -6,10 +6,7 @@ use std::{cell::RefCell, collections::VecDeque};
 
 use candid::Principal;
 use ic_cdk::{
-    api::{
-        call::{arg_data_raw, reply_raw},
-        stable,
-    },
+    api::{call::reply_raw, stable},
     caller, spawn,
 };
 use ic_cdk_macros::*;
@@ -46,6 +43,8 @@ where
     mutate_with_invarant_check(f, None)
 }
 
+// Mutates the state and checks one invariant: that any token liquidity was changed only
+// in line with the expected delta (or not changed at all, if delta is None.
 fn mutate_with_invarant_check<F, R>(f: F, liquidity_delta: Option<(TokenId, i128)>) -> R
 where
     F: FnOnce(&mut State) -> R,
@@ -70,14 +69,11 @@ where
     result
 }
 
-fn parse<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> T {
-    serde_json::from_slice(bytes).expect("couldn't parse the input")
-}
-
 fn reply<T: serde::Serialize>(data: T) {
     reply_raw(serde_json::json!(data).to_string().as_bytes());
 }
 
+// Starts all repeating tasks.
 fn kickstart() {
     assets::load();
     let fetch_rate = || {
@@ -91,6 +87,13 @@ fn kickstart() {
     set_timer_interval(Duration::from_secs(15 * 60), fetch_rate);
 }
 
+// This method deposits liquidity from user's subaccount into the token pools.
+//
+// It first checks, if there's any pending liquidity on users' subaccount. If yes, it moves the
+// liquidity to the corresponding token pool, and makes a corresponding accounting of the user's
+// share.
+//
+// If the balance is smaller than the fee, the function does nothing.
 async fn deposit_liquidity(user: Principal, token: TokenId) -> Result<(), String> {
     let user_account = icrc1::user_account(user);
     let wallet_balance = icrc1::balance_of(token, &user_account)

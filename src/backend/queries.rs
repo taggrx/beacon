@@ -1,19 +1,13 @@
 use super::*;
 
-#[export_name = "canister_query token"]
-fn token() {
-    let id: Principal = parse(&arg_data_raw());
-    read(|state| reply(state.token(id)));
-}
-
 #[export_name = "canister_query tokens"]
 fn tokens() {
     read(|state| reply(state.tokens()));
 }
 
-#[export_name = "canister_query logs"]
-fn logs() {
-    read(|state| reply(state.logs()));
+#[export_name = "canister_query token_balances"]
+fn token_balances() {
+    reply(read(|state| state.token_balances(caller())));
 }
 
 #[export_name = "canister_query prices"]
@@ -38,58 +32,9 @@ fn prices() {
     });
 }
 
-#[derive(Serialize)]
-struct Data {
-    e8s_per_xdr: u64,
-    fee: u128,
-}
-
-#[export_name = "canister_query params"]
-fn params() {
-    read(|state| {
-        reply(Data {
-            e8s_per_xdr: state.e8s_per_xdr,
-            fee: TX_FEE,
-        })
-    })
-}
-
-#[export_name = "canister_query token_balances"]
-fn token_balances() {
-    reply(read(|state| state.token_balances(caller())));
-}
-
 #[query]
 fn orders(token: TokenId, order_type: OrderType) -> Vec<Order> {
     read(|state| state.orders(token, order_type).cloned().collect())
-}
-
-#[derive(Serialize)]
-struct Stats {
-    volume_day: u128,
-    trades_day: u64,
-    icp_locked: u128,
-}
-
-#[export_name = "canister_query stats"]
-fn stats() {
-    let now = ic_cdk::api::time();
-    reply(read(|state| {
-        let day_orders = state
-            .order_archive
-            .values()
-            .flatten()
-            .filter(|order| order.executed + DAY >= now);
-
-        Stats {
-            volume_day: day_orders
-                .clone()
-                .map(|order| order.amount * order.price)
-                .sum(),
-            trades_day: day_orders.count() as u64,
-            icp_locked: state.payment_token_pool().values().sum(),
-        }
-    }))
 }
 
 #[query]
@@ -110,4 +55,41 @@ fn executed_orders(token: TokenId) -> VecDeque<Order> {
             })
             .unwrap_or_default()
     })
+}
+
+#[export_name = "canister_query logs"]
+fn logs() {
+    read(|state| reply(state.logs()));
+}
+
+#[derive(Serialize)]
+struct BackenData {
+    volume_day: u128,
+    trades_day: u64,
+    icp_locked: u128,
+    e8s_per_xdr: u64,
+    fee: u128,
+}
+
+#[export_name = "canister_query data"]
+fn data() {
+    let now = ic_cdk::api::time();
+    reply(read(|state| {
+        let day_orders = state
+            .order_archive
+            .values()
+            .flatten()
+            .filter(|order| order.executed + DAY >= now);
+
+        BackenData {
+            volume_day: day_orders
+                .clone()
+                .map(|order| order.amount * order.price)
+                .sum(),
+            trades_day: day_orders.count() as u64,
+            icp_locked: state.payment_token_pool().values().sum(),
+            e8s_per_xdr: state.e8s_per_xdr,
+            fee: TX_FEE,
+        }
+    }))
 }

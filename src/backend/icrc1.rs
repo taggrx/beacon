@@ -126,6 +126,7 @@ pub async fn transfer(
     result.map_err(|err| format!("{:?}", err))
 }
 
+/// Returns BEACON's account.
 pub fn main_account() -> Account {
     Account {
         owner: id(),
@@ -133,6 +134,7 @@ pub fn main_account() -> Account {
     }
 }
 
+/// Returns user's subaccount controlled by BEACON.
 pub fn user_account(user: Principal) -> Account {
     let mut subaccount = user.as_slice().to_vec();
     subaccount.resize(32, 0);

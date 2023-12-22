@@ -4,21 +4,19 @@ import * as React from "react";
 
 export const Landing = ({}) => {
     const [prices, setPrices] = React.useState<{ [name: string]: bigint }>({});
-    const [stats, setStats] = React.useState<{ [name: string]: any }>({});
 
     const loadData = async () => {
-        const [prices, stats] = await Promise.all([
-            window.api.query<{ [name: string]: bigint }>("prices"),
-            window.api.query<{ [name: string]: any }>("stats"),
-        ]);
+        const prices = await window.api.query<{ [name: string]: bigint }>(
+            "prices",
+        );
         if (prices) setPrices(prices);
-        if (stats) setStats(stats);
     };
 
     React.useEffect(() => {
         loadData();
     }, []);
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
+    const { icp_locked, trades_day, volume_day, fee } = window.data;
 
     return (
         <div>
@@ -35,24 +33,22 @@ export const Landing = ({}) => {
             <div className={bigScreen() ? "dynamic_table" : "two_columns_grid"}>
                 <div className="dbcell">
                     {paymentToken.symbol} LOCKED
-                    <code>
-                        {token(stats.icp_locked, paymentToken.decimals)}{" "}
-                    </code>
+                    <code>{token(icp_locked, paymentToken.decimals)} </code>
                 </div>
                 <div className="dbcell">
                     24H TRADES
-                    <code>{stats.trades_day}</code>
+                    <code>{trades_day}</code>
                 </div>
                 <div className="dbcell">
                     24H VOLUME
                     <code>
-                        {token(stats.volume_day, paymentToken.decimals)}{" "}
+                        {token(volume_day, paymentToken.decimals)}{" "}
                         {paymentToken.symbol}
                     </code>
                 </div>
                 <div className="dbcell">
                     FEES
-                    <code>{Number(window.data.fee) / 100}%</code>
+                    <code>{Number(fee) / 100}%</code>
                 </div>
             </div>
             <br />
