@@ -43,9 +43,9 @@ fn mutate_with_invariance_check<F, R>(f: F) -> R
 where
     F: FnOnce(&mut State) -> R,
 {
-    let balances_before = read(|state| state.pool_balances());
+    let balances_before = read(|state| state.funds_under_management());
     let result = STATE.with(|cell| f(&mut cell.borrow_mut()));
-    let balances_after = read(|state| state.pool_balances());
+    let balances_after = read(|state| state.funds_under_management());
     assert_eq!(balances_before, balances_after);
     result
 }

@@ -561,10 +561,37 @@ impl State {
         Ok(filled)
     }
 
-    pub fn pool_balances(&self) -> Vec<(String, Tokens)> {
+    /// This method is used for an invariance check, making sure that no funds get lost.
+    /// It returns a simple mapping from the token id, to the amount of managed funds.
+    ///
+    /// Note, that additionally to unlocked liquidity, we need to count all funds locked in
+    /// buying orders for the payment token, and all funds locked in sell orders of
+    /// a non-payment token
+    pub fn funds_under_management(&self) -> Vec<(String, Tokens)> {
         self.pools
             .iter()
-            .map(|(id, pool)| (id.to_string(), pool.values().sum()))
+            .map(|(id, pool)| {
+                (
+                    id.to_string(),
+                    pool.values().sum::<Tokens>()
+                        + if id == &PAYMENT_TOKEN_ID {
+                            self.orders
+                                .values()
+                                .flat_map(|book| book.buyers.iter().map(|order| order.amount))
+                                .sum::<Tokens>()
+                        } else {
+                            self.orders
+                                .get(id)
+                                .map(|book| {
+                                    book.sellers
+                                        .iter()
+                                        .map(|order| order.amount)
+                                        .sum::<Tokens>()
+                                })
+                                .unwrap_or_default()
+                        },
+                )
+            })
             .collect()
     }
 }
