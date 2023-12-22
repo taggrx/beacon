@@ -39,22 +39,35 @@ where
     STATE.with(|cell| f(&cell.borrow()))
 }
 
-fn mutate_with_invariance_check<F, R>(f: F) -> R
+fn mutate<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut State) -> R,
+{
+    mutate_with_invarant_check(f, None)
+}
+
+fn mutate_with_invarant_check<F, R>(f: F, liquidity_delta: Option<(TokenId, i128)>) -> R
 where
     F: FnOnce(&mut State) -> R,
 {
     let balances_before = read(|state| state.funds_under_management());
     let result = STATE.with(|cell| f(&mut cell.borrow_mut()));
-    let balances_after = read(|state| state.funds_under_management());
+    let mut balances_after = read(|state| state.funds_under_management());
+    if let Some((token_id, delta)) = liquidity_delta {
+        if let Some((_, balance)) = balances_after
+            .iter_mut()
+            .find(|(id, _)| id == &token_id.to_string())
+        {
+            // if a new token was listed, remove it from the after balance if its balance is zero
+            if delta == 0 && balance == &0 {
+                balances_after.retain(|(id, _)| id != &token_id.to_string());
+            } else {
+                *balance = (*balance as i128 - delta) as u128;
+            }
+        }
+    }
     assert_eq!(balances_before, balances_after);
     result
-}
-
-fn mutate<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut State) -> R,
-{
-    STATE.with(|cell| f(&mut cell.borrow_mut()))
 }
 
 fn parse<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> T {
@@ -96,7 +109,10 @@ async fn deposit_liquidity(user: Principal, token: TokenId) -> Result<(), String
         )
         .await
         .map_err(|err| format!("transfer failed: {}", err))?;
-        mutate(|state| state.add_liquidity(user, token, wallet_balance))?;
+        mutate_with_invarant_check(
+            |state| state.add_liquidity(user, token, wallet_balance),
+            Some((token, wallet_balance as i128)),
+        )?;
     }
     Ok(())
 }

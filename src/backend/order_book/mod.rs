@@ -4,7 +4,7 @@ use std::{
 };
 
 use candid::{CandidType, Principal};
-use ic_ledger_types::MAINNET_LEDGER_CANISTER_ID;
+use ic_ledger_types::{DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
 use serde::{Deserialize, Serialize};
 
 use crate::icrc1::Value;
@@ -38,11 +38,16 @@ pub struct Order {
     owner: Principal,
     pub amount: Tokens,
     pub price: E8sPerToken,
+    fees: E8s,
     timestamp: Timestamp,
     pub executed: Timestamp,
 }
 
 impl Order {
+    fn set_fees(&mut self) {
+        self.fees = trading_fee(self.amount * self.price);
+    }
+
     fn reserved_liquidity(&self, order_type: OrderType) -> Tokens {
         if order_type.buy() {
             let volume = self.amount * self.price;
@@ -154,6 +159,13 @@ impl State {
         }
     }
 
+    pub fn token_pool_balance(&self, token: TokenId, user: Principal) -> Tokens {
+        self.pools
+            .get(&token)
+            .and_then(|pool| pool.get(&user).copied())
+            .unwrap_or_default()
+    }
+
     pub fn payment_token_pool(&self) -> &BTreeMap<Principal, Tokens> {
         self.pools
             .get(&PAYMENT_TOKEN_ID)
@@ -191,6 +203,7 @@ impl State {
             amount,
             timestamp,
             executed: 0,
+            fees: 0,
         };
         let reserved_liquidity = order.reserved_liquidity(order_type);
         if orders.remove(&order) {
@@ -400,17 +413,22 @@ impl State {
         timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
+        if price == 0 {
+            return Err("limit price is 0".into());
+        }
         if !self.tokens.contains_key(&token) {
             return Err("token not listed".into());
         }
 
-        let order = Order {
+        let mut order = Order {
             owner: user,
             amount,
             price,
             timestamp,
             executed: 0,
+            fees: 0,
         };
+        order.set_fees();
         let order_book = self.orders.entry(token).or_default();
         let token_balance = self
             .pools
@@ -521,8 +539,12 @@ impl State {
                 // partial order fill - create a new one for left overs
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
+                // if we are executing a sell trade, then we're processing buy orders and vice
+                // versa
+                remaining_order.set_fees();
                 orders.insert(remaining_order);
                 order.amount = amount;
+                order.set_fees();
                 0
             } else {
                 amount - order.amount
@@ -577,7 +599,11 @@ impl State {
                         + if id == &PAYMENT_TOKEN_ID {
                             self.orders
                                 .values()
-                                .flat_map(|book| book.buyers.iter().map(|order| order.amount))
+                                .flat_map(|book| {
+                                    book.buyers
+                                        .iter()
+                                        .map(|order| order.amount * order.price + order.fees)
+                                })
                                 .sum::<Tokens>()
                         } else {
                             self.orders
@@ -625,30 +651,34 @@ fn adjust_pools(
     let buyers_tokens = token_pool.entry(token_receiver).or_insert(0);
     *buyers_tokens += order.amount;
 
-    let icp_pool = pools
+    let payment_token_pool = pools
         .get_mut(&PAYMENT_TOKEN_ID)
-        .ok_or("no icp pool found")?;
+        .ok_or("no payment pool found")?;
+
     let volume = order.amount * order.price;
-    let fee = trading_fee(volume);
 
     // We only need to subtract payment liquidity if we're executing a buying trade, becasue we
     // process sell orders
     if trade_type.buy() {
-        let buyers_icp_tokens = icp_pool.get_mut(&token_receiver).ok_or("no ICP tokens")?;
-        *buyers_icp_tokens = buyers_icp_tokens
-            .checked_sub(volume + fee)
-            .ok_or("not enough ICP tokens")?;
+        let buyers_payment_tokens = payment_token_pool
+            .get_mut(&token_receiver)
+            .ok_or("no payment tokens")?;
+        *buyers_payment_tokens = buyers_payment_tokens
+            .checked_sub(volume + order.fees)
+            .ok_or("not enough payment tokens")?;
     }
 
-    let sellers_icp_tokens = icp_pool.entry(payment_receiver).or_default();
-    *sellers_icp_tokens += volume.checked_sub(fee).ok_or("amount smaller than fees")?;
-    let icp_fees = icp_pool.entry(revenue_account).or_default();
-    *icp_fees += 2 * fee;
+    let sellers_payment_tokens = payment_token_pool.entry(payment_receiver).or_default();
+    *sellers_payment_tokens += volume
+        .checked_sub(order.fees)
+        .ok_or("amount smaller than fees")?;
+    let payment_fees = payment_token_pool.entry(revenue_account).or_default();
+    *payment_fees += 2 * order.fees;
     Ok(())
 }
 
 fn trading_fee(volume: E8s) -> u128 {
-    volume * TX_FEE / 10000
+    volume * TX_FEE / DEFAULT_FEE.e8s() as u128
 }
 
 #[cfg(test)]
@@ -675,6 +705,55 @@ mod tests {
         )
     }
 
+    pub fn create_order(
+        state: &mut State,
+        user: Principal,
+        token: TokenId,
+        amount: Tokens,
+        price: E8sPerToken,
+        timestamp: Timestamp,
+        order_type: OrderType,
+    ) -> Result<(), String> {
+        let fum = state.funds_under_management();
+        let result = state.create_order(user, token, amount, price, timestamp, order_type);
+        if result.is_ok() {
+            assert_eq!(fum, state.funds_under_management());
+        }
+        result
+    }
+
+    fn trade(
+        state: &mut State,
+        trade_type: OrderType,
+        trader: Principal,
+        token: TokenId,
+        amount: u128,
+        limit: Option<E8sPerToken>,
+        time: Timestamp,
+    ) -> Result<u128, String> {
+        let fum = state.funds_under_management();
+        let result = state.execute_trade(trade_type, trader, token, amount, limit, time);
+        if result.is_ok() {
+            assert_eq!(fum, state.funds_under_management());
+        }
+        result
+    }
+
+    fn list_payment_token(state: &mut State) {
+        state.revenue_account = Some(pr(255));
+        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
+        state.tokens.insert(
+            PAYMENT_TOKEN_ID,
+            Metadata {
+                symbol: "ICP".into(),
+                fee: DEFAULT_FEE.e8s() as u128,
+                decimals: 8,
+                logo: None,
+                realm: None,
+            },
+        );
+    }
+
     #[test]
     fn test_orderbook() {
         let mut o1 = Order {
@@ -683,6 +762,7 @@ mod tests {
             price: 0,
             timestamp: 111,
             executed: 0,
+            fees: 0,
         };
         let mut o2 = Order {
             owner: pr(16),
@@ -690,6 +770,7 @@ mod tests {
             price: 0,
             timestamp: 111,
             executed: 0,
+            fees: 0,
         };
 
         assert_eq!(o1.cmp(&o1), Ordering::Equal);
@@ -708,137 +789,47 @@ mod tests {
     }
 
     #[test]
-    fn test_order_closing() {
-        {
-            let mut state = State::default();
-            state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-            state.tokens.insert(
-                PAYMENT_TOKEN_ID,
-                Metadata {
-                    symbol: "ICP".into(),
-                    fee: DEFAULT_FEE.e8s() as u128,
-                    decimals: 8,
-                    logo: None,
-                    realm: None,
-                },
-            );
+    fn test_simplest_trade() {
+        let state = &mut State::default();
+        list_payment_token(state);
+        let token = pr(100);
 
-            let token = pr(100);
+        state.add_token(
+            token,
+            "TAGGR".into(),
+            25, // fees
+            2,  // decimals
+            None,
+            None,
+        );
 
-            assert_eq!(
-                state.add_liquidity(pr(0), token, 111),
-                Err("token not found".into())
-            );
+        state.add_liquidity(pr(1), PAYMENT_TOKEN_ID, 21000).unwrap();
+        assert_eq!(trading_fee(20000), 2);
+        assert_eq!(
+            create_order(state, pr(1), token, 1, 0, 0, OrderType::Buy),
+            Err("limit price is 0".into())
+        );
+        assert_eq!(
+            create_order(state, pr(1), token, 1, 22000, 0, OrderType::Buy),
+            Err("not enough funds available for this order size".into())
+        );
 
-            state.add_token(
-                token,
-                "TAGGR".into(),
-                25, // fees
-                2,  // decimals
-                None,
-                None,
-            );
+        assert_eq!(
+            create_order(state, pr(1), token, 1, 20000, 0, OrderType::Buy),
+            Ok(())
+        );
 
-            state.add_liquidity(pr(0), token, 111).unwrap();
-            state.add_liquidity(pr(0), token, 222).unwrap();
-
-            assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
-
-            assert_eq!(
-                state.create_order(pr(0), token, 250, 0, 0, OrderType::Sell),
-                Ok(())
-            );
-            assert_eq!(
-                state.create_order(pr(0), token, 50, 0, 0, OrderType::Sell),
-                Ok(())
-            );
-
-            assert_eq!(
-                state.token_balances(pr(0)).get(&token).unwrap().0,
-                333 - 250 - 50
-            );
-            assert_eq!(
-                state.close_order(pr(0), token, 50, 0, 0, OrderType::Sell),
-                Ok(())
-            );
-            assert_eq!(
-                state.close_order(pr(0), token, 250, 0, 0, OrderType::Sell),
-                Ok(())
-            );
-            assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
-
-            state
-                .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 10000000)
-                .unwrap();
-            assert!(state
-                .create_order(pr(0), token, 3, 10000000, 0, OrderType::Buy)
-                .is_ok());
-
-            let volume = 3 * 10000000;
-
-            assert_eq!(
-                state
-                    .token_balances(pr(0))
-                    .get(&PAYMENT_TOKEN_ID)
-                    .copied()
-                    .unwrap()
-                    .0,
-                8 * 10000000 - volume - trading_fee(volume)
-            );
-
-            assert_eq!(
-                state.create_order(pr(0), token, 3, 10000000, 0, OrderType::Buy),
-                Err("order exists already".into())
-            );
-
-            assert!(state
-                .create_order(pr(0), token, 4, 10000000, 0, OrderType::Buy)
-                .is_ok());
-
-            let volume2 = 4 * 10000000;
-            assert_eq!(
-                state
-                    .token_balances(pr(0))
-                    .get(&PAYMENT_TOKEN_ID)
-                    .copied()
-                    .unwrap()
-                    .0,
-                8 * 10000000 - volume - trading_fee(volume) - volume2 - trading_fee(volume2)
-            );
-            assert_eq!(
-                state.close_order(pr(0), token, 3, 10000000, 0, OrderType::Buy),
-                Ok(())
-            );
-            assert_eq!(
-                state.close_order(pr(0), token, 4, 10000000, 0, OrderType::Buy),
-                Ok(())
-            );
-            assert_eq!(
-                state
-                    .token_balances(pr(0))
-                    .get(&PAYMENT_TOKEN_ID)
-                    .copied()
-                    .unwrap()
-                    .0,
-                8 * 10000000
-            );
-        }
+        state.add_liquidity(pr(0), token, 1).unwrap();
+        assert_eq!(
+            trade(state, OrderType::Sell, pr(0), token, 1, None, 123456),
+            Ok(1)
+        );
     }
 
     #[test]
-    fn test_liquidity_adding_and_withdrawals() {
-        let mut state = State::default();
-        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-        state.tokens.insert(
-            PAYMENT_TOKEN_ID,
-            Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
-                decimals: 8,
-                logo: None,
-                realm: None,
-            },
-        );
+    fn test_order_closing() {
+        let state = &mut State::default();
+        list_payment_token(state);
 
         let token = pr(100);
 
@@ -862,7 +853,113 @@ mod tests {
         assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
 
         assert_eq!(
-            state.create_order(pr(0), token, 250, 0, 0, OrderType::Sell),
+            create_order(state, pr(0), token, 250, 1, 0, OrderType::Sell),
+            Ok(())
+        );
+        assert_eq!(
+            create_order(state, pr(0), token, 50, 1, 0, OrderType::Sell),
+            Ok(())
+        );
+
+        assert_eq!(
+            state.token_balances(pr(0)).get(&token).unwrap().0,
+            333 - 250 - 50
+        );
+        assert_eq!(
+            state.close_order(pr(0), token, 50, 1, 0, OrderType::Sell),
+            Ok(())
+        );
+        assert_eq!(
+            state.close_order(pr(0), token, 250, 1, 0, OrderType::Sell),
+            Ok(())
+        );
+        assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
+
+        state
+            .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 10000000)
+            .unwrap();
+        assert!(state
+            .create_order(pr(0), token, 3, 10000000, 0, OrderType::Buy)
+            .is_ok());
+
+        let volume = 3 * 10000000;
+
+        assert_eq!(
+            state
+                .token_balances(pr(0))
+                .get(&PAYMENT_TOKEN_ID)
+                .copied()
+                .unwrap()
+                .0,
+            8 * 10000000 - volume - trading_fee(volume)
+        );
+
+        assert_eq!(
+            create_order(state, pr(0), token, 3, 10000000, 0, OrderType::Buy),
+            Err("order exists already".into())
+        );
+
+        assert!(state
+            .create_order(pr(0), token, 4, 10000000, 0, OrderType::Buy)
+            .is_ok());
+
+        let volume2 = 4 * 10000000;
+        assert_eq!(
+            state
+                .token_balances(pr(0))
+                .get(&PAYMENT_TOKEN_ID)
+                .copied()
+                .unwrap()
+                .0,
+            8 * 10000000 - volume - trading_fee(volume) - volume2 - trading_fee(volume2)
+        );
+        assert_eq!(
+            state.close_order(pr(0), token, 3, 10000000, 0, OrderType::Buy),
+            Ok(())
+        );
+        assert_eq!(
+            state.close_order(pr(0), token, 4, 10000000, 0, OrderType::Buy),
+            Ok(())
+        );
+        assert_eq!(
+            state
+                .token_balances(pr(0))
+                .get(&PAYMENT_TOKEN_ID)
+                .copied()
+                .unwrap()
+                .0,
+            8 * 10000000
+        );
+    }
+
+    #[test]
+    fn test_liquidity_adding_and_withdrawals() {
+        let state = &mut State::default();
+        list_payment_token(state);
+
+        let token = pr(100);
+
+        assert_eq!(
+            state.add_liquidity(pr(0), token, 111),
+            Err("token not found".into())
+        );
+
+        state.add_token(
+            token,
+            "TAGGR".into(),
+            25, // fees
+            2,  // decimals
+            None,
+            None,
+        );
+
+        state.add_liquidity(pr(0), token, 111).unwrap();
+        state.add_liquidity(pr(0), token, 222).unwrap();
+
+        assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
+
+        assert_eq!(
+            create_order(state, pr(0), token, 250, 1, 0, OrderType::Sell),
             Ok(())
         );
 
@@ -871,8 +968,8 @@ mod tests {
             333 - 250
         );
 
-        assert_eq!(user_orders(&state, token, pr(0), OrderType::Buy).count(), 0);
-        let sell_orders = user_orders(&state, token, pr(0), OrderType::Sell).collect::<Vec<_>>();
+        assert_eq!(user_orders(state, token, pr(0), OrderType::Buy).count(), 0);
+        let sell_orders = user_orders(state, token, pr(0), OrderType::Sell).collect::<Vec<_>>();
         assert_eq!(sell_orders.len(), 1);
         assert_eq!(sell_orders.first().unwrap().amount, 250);
 
@@ -882,7 +979,7 @@ mod tests {
         );
         assert_eq!(state.withdraw_liquidity(pr(0), token), Ok(333 - 25));
 
-        let sell_orders = user_orders(&state, token, pr(0), OrderType::Sell).collect::<Vec<_>>();
+        let sell_orders = user_orders(state, token, pr(0), OrderType::Sell).collect::<Vec<_>>();
         assert_eq!(sell_orders.len(), 0);
 
         let one_icp = 100000000;
@@ -901,25 +998,15 @@ mod tests {
 
     #[test]
     fn test_selling() {
-        let mut state = State::default();
-        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-        state.tokens.insert(
-            PAYMENT_TOKEN_ID,
-            Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
-                decimals: 8,
-                logo: None,
-                realm: None,
-            },
-        );
+        let state = &mut State::default();
+        list_payment_token(state);
 
         state.revenue_account = Some(pr(255));
 
         let token = pr(100);
 
         assert_eq!(
-            state.create_order(pr(0), token, 7, 50000000, 0, OrderType::Buy),
+            create_order(state, pr(0), token, 7, 50000000, 0, OrderType::Buy),
             Err("token not listed".into())
         );
 
@@ -927,7 +1014,7 @@ mod tests {
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         assert_eq!(
-            state.create_order(pr(0), token, 7, 10000000, 0, OrderType::Buy),
+            create_order(state, pr(0), token, 7, 10000000, 0, OrderType::Buy),
             Err("no funds available".into())
         );
 
@@ -951,7 +1038,7 @@ mod tests {
             .add_liquidity(pr(2), PAYMENT_TOKEN_ID, 24 * 1000000)
             .unwrap();
         assert_eq!(
-            state.create_order(pr(2), token, 25, 1000000, 0, OrderType::Buy),
+            create_order(state, pr(2), token, 25, 1000000, 0, OrderType::Buy),
             Err("not enough funds available for this order size".into())
         );
         state
@@ -985,14 +1072,20 @@ mod tests {
         let seller = pr(5);
 
         assert_eq!(
-            state
-                .clone()
-                .execute_trade(OrderType::Sell, seller, token, 5, None, 123456),
+            trade(
+                &mut state.clone(),
+                OrderType::Sell,
+                seller,
+                token,
+                5,
+                None,
+                123456
+            ),
             Err("not enough tokens".into())
         );
         state.add_liquidity(seller, token, 250).unwrap();
         assert_eq!(
-            state.execute_trade(OrderType::Sell, seller, token, 5, None, 123456),
+            trade(state, OrderType::Sell, seller, token, 5, None, 123456),
             Ok(5)
         );
 
@@ -1041,7 +1134,7 @@ mod tests {
         assert_eq!(best_order.price, 10000000);
 
         assert_eq!(
-            state.execute_trade(OrderType::Sell, seller, token, 10, None, 123457),
+            trade(state, OrderType::Sell, seller, token, 10, None, 123457),
             Ok(10)
         );
 
@@ -1060,7 +1153,7 @@ mod tests {
 
         // at that point we have buy orders: 25 @ 0.01, 8 @ 0.03
         assert_eq!(
-            state.execute_trade(OrderType::Sell, seller, token, 150, None, 123457),
+            trade(state, OrderType::Sell, seller, token, 150, None, 123457),
             Ok(33)
         );
 
@@ -1089,18 +1182,8 @@ mod tests {
 
     #[test]
     fn test_buying() {
-        let mut state = State::default();
-        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-        state.tokens.insert(
-            PAYMENT_TOKEN_ID,
-            Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
-                decimals: 8,
-                logo: None,
-                realm: None,
-            },
-        );
+        let state = &mut State::default();
+        list_payment_token(state);
 
         state.revenue_account = Some(pr(255));
 
@@ -1166,7 +1249,7 @@ mod tests {
             .unwrap();
         assert_eq!(state.payment_token_pool().len(), 1);
         assert_eq!(
-            state.execute_trade(OrderType::Buy, buyer, token, 10, None, 123456),
+            trade(state, OrderType::Buy, buyer, token, 10, None, 123456),
             Ok(10)
         );
 
@@ -1198,7 +1281,7 @@ mod tests {
             .add_liquidity(buyer, PAYMENT_TOKEN_ID, 6 * 3000000 + 2 * 5000000)
             .unwrap();
         assert_eq!(
-            state.execute_trade(OrderType::Buy, buyer, token, 7, None, 123457),
+            trade(state, OrderType::Buy, buyer, token, 7, None, 123457),
             Ok(7)
         );
         // buyer got 17 tokens
@@ -1216,7 +1299,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            state.execute_trade(OrderType::Buy, buyer, token, 100, None, 123458),
+            trade(state, OrderType::Buy, buyer, token, 100, None, 123458),
             Ok(31)
         );
 
@@ -1245,18 +1328,8 @@ mod tests {
 
     #[test]
     fn test_limit_selling() {
-        let mut state = State::default();
-        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-        state.tokens.insert(
-            PAYMENT_TOKEN_ID,
-            Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
-                decimals: 8,
-                logo: None,
-                realm: None,
-            },
-        );
+        let state = &mut State::default();
+        list_payment_token(state);
 
         state.revenue_account = Some(pr(255));
 
@@ -1294,7 +1367,15 @@ mod tests {
 
         state.add_liquidity(seller, token, 250).unwrap();
         assert_eq!(
-            state.execute_trade(OrderType::Sell, seller, token, 50, Some(2000000), 123456),
+            trade(
+                state,
+                OrderType::Sell,
+                seller,
+                token,
+                50,
+                Some(2000000),
+                123456
+            ),
             Ok(23)
         );
 
@@ -1313,18 +1394,8 @@ mod tests {
 
     #[test]
     fn test_limit_buying() {
-        let mut state = State::default();
-        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-        state.tokens.insert(
-            PAYMENT_TOKEN_ID,
-            Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
-                decimals: 8,
-                logo: None,
-                realm: None,
-            },
-        );
+        let state = &mut State::default();
+        list_payment_token(state);
 
         state.revenue_account = Some(pr(255));
 
@@ -1358,7 +1429,15 @@ mod tests {
             .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 100000000)
             .unwrap();
         assert_eq!(
-            state.execute_trade(OrderType::Buy, buyer, token, 50, Some(6000000), 123456),
+            trade(
+                state,
+                OrderType::Buy,
+                buyer,
+                token,
+                50,
+                Some(6000000),
+                123456
+            ),
             Ok(23)
         );
 
@@ -1388,18 +1467,8 @@ mod tests {
 
     #[test]
     fn test_liquitidy_lock() {
-        let mut state = State::default();
-        state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
-        state.tokens.insert(
-            PAYMENT_TOKEN_ID,
-            Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
-                decimals: 8,
-                logo: None,
-                realm: None,
-            },
-        );
+        let state = &mut State::default();
+        list_payment_token(state);
 
         state.revenue_account = Some(pr(255));
 
@@ -1413,7 +1482,7 @@ mod tests {
             .create_order(pr(0), token, 7, 5000000, 0, OrderType::Sell)
             .is_ok());
         assert_eq!(
-            state.create_order(pr(0), token, 7, 6000000, 0, OrderType::Sell),
+            create_order(state, pr(0), token, 7, 6000000, 0, OrderType::Sell),
             Err("not enough funds available for this order size".into())
         );
     }

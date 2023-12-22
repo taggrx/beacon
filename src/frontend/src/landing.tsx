@@ -52,9 +52,7 @@ export const Landing = ({}) => {
                 </div>
                 <div className="dbcell">
                     FEES
-                    <code>
-                        {token(window.data.fee, paymentToken.decimals)}%
-                    </code>
+                    <code>{Number(window.data.fee) / 100}%</code>
                 </div>
             </div>
             <br />

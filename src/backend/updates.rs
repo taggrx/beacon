@@ -47,7 +47,7 @@ fn post_upgrade() {
 
 #[update]
 fn set_revenue_account(new_address: Principal) {
-    mutate_with_invariance_check(|state| {
+    mutate(|state| {
         if state.revenue_account.is_none() || state.revenue_account == Some(caller()) {
             state.revenue_account = Some(new_address);
         }
@@ -62,10 +62,8 @@ async fn close_order(
     price: Tokens,
     timestamp: Timestamp,
 ) {
-    mutate_with_invariance_check(|state| {
-        state.close_order(caller(), token, amount, price, timestamp, order_type)
-    })
-    .expect("couldn't close order")
+    mutate(|state| state.close_order(caller(), token, amount, price, timestamp, order_type))
+        .expect("couldn't close order")
 }
 
 #[update]
@@ -84,7 +82,7 @@ async fn trade(
 
     deposit_liquidity(user, pool_token).await?;
 
-    Ok(mutate_with_invariance_check(|state| {
+    Ok(mutate(|state| {
         state
             .trade(order_type, user, token, amount, price, ic_cdk::api::time())
             .expect("trade failed")
@@ -95,7 +93,11 @@ async fn trade(
 async fn withdraw(token_id: Principal) -> Result<u128, String> {
     let user = caller();
     let fee = read(|state| state.token(token_id))?.fee;
-    let balance = mutate(|state| state.withdraw_liquidity(user, token_id))?;
+    let existing_balance = read(|state| state.token_pool_balance(token_id, user));
+    let balance = mutate_with_invarant_check(
+        |state| state.withdraw_liquidity(user, token_id),
+        Some((token_id, -(existing_balance as i128))),
+    )?;
     let amount = balance - fee;
     icrc1::transfer(
         token_id,
@@ -132,7 +134,7 @@ async fn list_token(token: TokenId) -> Result<(), String> {
     register_token(token).await?;
 
     // if the listing worked, charge the user
-    mutate_with_invariance_check(|state| {
+    mutate(|state| {
         state
             .charge(user, effective_amount)
             .expect("payment failed")
@@ -145,5 +147,5 @@ async fn register_token(token: TokenId) -> Result<(), String> {
     let metadata = icrc1::metadata(token)
         .await
         .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
-    mutate(|state| state.list_token(token, metadata))
+    mutate_with_invarant_check(|state| state.list_token(token, metadata), Some((token, 0)))
 }
