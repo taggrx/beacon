@@ -39,7 +39,7 @@ export const depositFromWallet = async (
                 tokenData.symbol
             } TO BEACON...`,
         );
-        let result: any = await window.api.transfer(
+        const result: any = await window.api.transfer(
             Principal.fromText(tokenId),
             Principal.from(process.env.CANISTER_ID),
             window.principalId.toUint8Array(),
@@ -48,6 +48,15 @@ export const depositFromWallet = async (
         if ("Err" in result) {
             console.error(result.Err);
             statusCallback("🔴 TRANSFER TO BECAON FAILED.");
+            return;
+        }
+        statusCallback("DEPOSITING TRANSFERRED FUNDS...");
+        const deposit_result: any = await window.api.deposit_liquidity(
+            Principal.fromText(tokenId),
+        );
+        if ("Err" in deposit_result) {
+            console.error(result.Err);
+            statusCallback("🔴 DEPOSIT FAILED.");
             return;
         }
     }

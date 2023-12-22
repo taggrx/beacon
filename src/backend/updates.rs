@@ -68,24 +68,61 @@ async fn close_order(
 }
 
 #[update]
+// This method deposits liquidity from user's subaccount into the token pools.
+//
+// It first checks, if there's any pending liquidity on users' subaccount. If yes, it moves the
+// liquidity to the corresponding token pool, and makes a corresponding accounting of the user's
+// share.
+//
+// If the balance is smaller than the fee, the function does nothing.
+async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
+    let user = caller();
+    let user_account = icrc1::user_account(user);
+    let wallet_balance = icrc1::balance_of(token, &user_account)
+        .await?
+        // subtract fee becasue this funds will be moved to BEACON pool
+        .checked_sub(read(|state| state.token(token))?.fee)
+        .unwrap_or_default();
+
+    // if the balance is above 0, move everything from the wallet to BEACON
+    if wallet_balance > 0 {
+        icrc1::transfer(
+            token,
+            user_account.subaccount,
+            icrc1::main_account(),
+            wallet_balance,
+        )
+        .await
+        .map_err(|err| {
+            let error = format!("deposit transfer failed: {}", err);
+            mutate(|state| state.log(error.clone()));
+            error
+        })?;
+        mutate_with_invarant_check(
+            |state| state.add_liquidity(user, token, wallet_balance),
+            Some((token, wallet_balance as i128)),
+        )?;
+    }
+    Ok(())
+}
+
+#[update]
 async fn trade(
     token: TokenId,
     amount: u128,
     price: Tokens,
     order_type: OrderType,
 ) -> Result<(u128, bool), String> {
-    let pool_token = if order_type.buy() {
-        PAYMENT_TOKEN_ID
-    } else {
-        token
-    };
-    let user = caller();
-
-    deposit_liquidity(user, pool_token).await?;
-
     Ok(mutate(|state| {
         state
-            .trade(order_type, user, token, amount, price, ic_cdk::api::time())
+            .trade(
+                order_type,
+                caller(),
+                token,
+                amount,
+                price,
+                ic_cdk::api::time(),
+            )
             .expect("trade failed")
     }))
 }
@@ -124,9 +161,6 @@ async fn withdraw(token_id: Principal) -> Result<u128, String> {
 #[update]
 async fn list_token(token: TokenId) -> Result<(), String> {
     let user = caller();
-
-    deposit_liquidity(user, PAYMENT_TOKEN_ID).await?;
-
     let listing_price = read(|state| state.e8s_per_xdr * 100);
 
     // we subtract the fees twice, because the user moved the funds to BEACON internal account

@@ -38,6 +38,8 @@ export type Backend = {
 
     list_token: (tokenId: Principal) => Promise<JsonValue>;
 
+    deposit_liquidity: (tokenId: Principal) => Promise<JsonValue>;
+
     close_order: (
         tokenId: Principal,
         order_type: OrderType,
@@ -232,6 +234,22 @@ export const ApiGenerator = (
         list_token: async (tokenId: Principal): Promise<JsonValue> => {
             const arg = IDL.encode([IDL.Principal], [tokenId]);
             const response = await call_raw(canisterId, "list_token", arg);
+            return decode(
+                response,
+                IDL.Variant({
+                    Ok: IDL.Null,
+                    Err: IDL.Text,
+                }),
+            );
+        },
+
+        deposit_liquidity: async (tokenId: Principal): Promise<JsonValue> => {
+            const arg = IDL.encode([IDL.Principal], [tokenId]);
+            const response = await call_raw(
+                canisterId,
+                "deposit_liquidity",
+                arg,
+            );
             return decode(
                 response,
                 IDL.Variant({

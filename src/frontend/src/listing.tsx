@@ -45,6 +45,7 @@ export const Listing = ({ tokenId }: { tokenId: string }) => {
                                 PAYMENT_TOKEN_ID,
                                 setStatus,
                             );
+
                             setStatus("LISTING THE TOKEN...");
                             const result: any = await window.api.list_token(
                                 Principal.from(tokenId),
