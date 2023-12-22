@@ -111,7 +111,7 @@ async fn withdraw(token_id: Principal) -> Result<u128, String> {
     )
     .await
     .map_err(|err| format!("transfer failed: {}", err))
-    .map(|_| balance)
+    .map(|_| amount)
 }
 
 #[update]

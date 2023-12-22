@@ -178,7 +178,7 @@ const withdrawToWallet = async (
             return;
         }
         if ("Ok" in result)
-            callback(`Success! Withdrew ${token(result.Ok, decimals)} tokens.`);
+            callback(`SUCCESS! WITHDREW ${token(result.Ok, decimals)} TOKENS.`);
     } catch (e) {
         alert(e);
     }
@@ -195,7 +195,7 @@ const withdrawToPrincipal = async (
     if (!recipient) return;
     if (
         confirm(
-            `Withdrawing ${token(balance, decimals)} ${symbol} (fee: ${token(
+            `WITHDRAWING ${token(balance, decimals)} ${symbol} (FEE: ${token(
                 fee,
                 decimals,
             )}) to\n\n${recipient}`,
@@ -213,7 +213,7 @@ const withdrawToPrincipal = async (
                 return;
             }
             if ("Ok" in result)
-                callback(`Success! Transaction ID: ${result.Ok}`);
+                callback(`SUCCESS! TRANSACTION ID: ${result.Ok}`);
         } catch (e) {
             alert(e);
         }

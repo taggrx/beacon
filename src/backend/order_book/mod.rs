@@ -18,7 +18,7 @@ pub type E8s = u128;
 
 pub const TX_FEE: u128 = 1; // 0.25% per trade side
 
-#[derive(CandidType, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(CandidType, Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum OrderType {
     Buy,
     Sell,
@@ -35,23 +35,19 @@ impl OrderType {
 
 #[derive(CandidType, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Order {
+    order_type: OrderType,
     owner: Principal,
     pub amount: Tokens,
     pub price: E8sPerToken,
-    fee: E8s,
     timestamp: Timestamp,
     pub executed: Timestamp,
 }
 
 impl Order {
-    fn set_fee(&mut self) {
-        self.fee = trading_fee(self.amount * self.price);
-    }
-
-    fn reserved_liquidity(&self, order_type: OrderType) -> Tokens {
-        if order_type.buy() {
+    fn reserved_liquidity(&self) -> Tokens {
+        if self.order_type.buy() {
             let volume = self.amount * self.price;
-            volume + self.fee
+            volume + trading_fee(volume)
         } else {
             self.amount
         }
@@ -196,18 +192,15 @@ impl State {
                 OrderType::Sell => &mut book.sellers,
             })
             .ok_or("no token found")?;
-        let mut order = Order {
+        let order = Order {
+            order_type,
             owner: user,
             price,
             amount,
             timestamp,
             executed: 0,
-            fee: 0,
         };
-        if order_type.buy() {
-            order.set_fee();
-        }
-        let reserved_liquidity = order.reserved_liquidity(order_type);
+        let reserved_liquidity = order.reserved_liquidity();
         if orders.remove(&order) {
             self.add_liquidity(
                 user,
@@ -277,8 +270,7 @@ impl State {
                                 .values()
                                 .flat_map(|book| {
                                     book.buyers.iter().filter_map(|order| {
-                                        (order.owner == user)
-                                            .then_some(order.reserved_liquidity(OrderType::Buy))
+                                        (order.owner == user).then_some(order.reserved_liquidity())
                                     })
                                 })
                                 .sum::<Tokens>()
@@ -289,9 +281,8 @@ impl State {
                                     book.sellers
                                         .iter()
                                         .filter_map(|order| {
-                                            (order.owner == user).then_some(
-                                                order.reserved_liquidity(OrderType::Sell),
-                                            )
+                                            (order.owner == user)
+                                                .then_some(order.reserved_liquidity())
                                         })
                                         .sum::<Tokens>()
                                 })
@@ -426,15 +417,14 @@ impl State {
             return Err("token not listed".into());
         }
 
-        let mut order = Order {
+        let order = Order {
+            order_type,
             owner: user,
             amount,
             price,
             timestamp,
             executed: 0,
-            fee: 0,
         };
-        order.set_fee();
         let order_book = self.orders.entry(token).or_default();
         let token_balance = self
             .pools
@@ -446,7 +436,7 @@ impl State {
             .ok_or("no token found")?
             .get_mut(&user)
             .ok_or("no funds available")?;
-        let required_liquidity = order.reserved_liquidity(order_type);
+        let required_liquidity = order.reserved_liquidity();
         if required_liquidity > *token_balance {
             return Err("not enough funds available for this order size".into());
         }
@@ -545,12 +535,8 @@ impl State {
                 // partial order fill - create a new one for left overs
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
-                // if we are executing a sell trade, then we're processing buy orders and vice
-                // versa
-                remaining_order.set_fee();
                 orders.insert(remaining_order);
                 order.amount = amount;
-                order.set_fee();
                 0
             } else {
                 amount - order.amount
@@ -606,9 +592,7 @@ impl State {
                             self.orders
                                 .values()
                                 .flat_map(|book| {
-                                    book.buyers
-                                        .iter()
-                                        .map(|order| order.amount * order.price + order.fee)
+                                    book.buyers.iter().map(|order| order.reserved_liquidity())
                                 })
                                 .sum::<Tokens>()
                         } else {
@@ -617,7 +601,7 @@ impl State {
                                 .map(|book| {
                                     book.sellers
                                         .iter()
-                                        .map(|order| order.amount)
+                                        .map(|order| order.reserved_liquidity())
                                         .sum::<Tokens>()
                                 })
                                 .unwrap_or_default()
@@ -662,6 +646,7 @@ fn adjust_pools(
         .ok_or("no payment pool found")?;
 
     let volume = order.amount * order.price;
+    let fee = trading_fee(volume);
 
     // We only need to subtract payment liquidity if we're executing a buying trade, becasue we
     // process sell orders
@@ -670,16 +655,14 @@ fn adjust_pools(
             .get_mut(&token_receiver)
             .ok_or("no payment tokens")?;
         *buyers_payment_tokens = buyers_payment_tokens
-            .checked_sub(volume + order.fee)
+            .checked_sub(volume + fee)
             .ok_or("not enough payment tokens")?;
     }
 
     let sellers_payment_tokens = payment_token_pool.entry(payment_receiver).or_default();
-    *sellers_payment_tokens += volume
-        .checked_sub(order.fee)
-        .ok_or("amount smaller than fee")?;
+    *sellers_payment_tokens += volume.checked_sub(fee).ok_or("amount smaller than fee")?;
     let payment_fees = payment_token_pool.entry(revenue_account).or_default();
-    *payment_fees += 2 * order.fee;
+    *payment_fees += 2 * fee;
     Ok(())
 }
 
@@ -780,20 +763,20 @@ mod tests {
     #[test]
     fn test_orderbook() {
         let mut o1 = Order {
+            order_type: OrderType::Buy,
             owner: pr(16),
             amount: 12,
             price: 0,
             timestamp: 111,
             executed: 0,
-            fee: 0,
         };
         let mut o2 = Order {
+            order_type: OrderType::Buy,
             owner: pr(16),
             amount: 32,
             price: 0,
             timestamp: 111,
             executed: 0,
-            fee: 0,
         };
 
         assert_eq!(o1.cmp(&o1), Ordering::Equal);
