@@ -1,6 +1,7 @@
 import { Principal } from "@dfinity/principal";
-import { PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
+import { ConnectButton, PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
 import * as React from "react";
+import { Wallet } from "./wallet";
 
 export const Landing = ({}) => {
     const [prices, setPrices] = React.useState<{ [name: string]: bigint }>({});
@@ -30,24 +31,33 @@ export const Landing = ({}) => {
                 </h4>
             </div>
             <br />
+            <div className="row_container" style={{ justifyContent: "center" }}>
+                {window.principalId ? (
+                    <Wallet />
+                ) : (
+                    <ConnectButton large={true} />
+                )}
+            </div>
+            <br />
+            <br />
             <div className={bigScreen() ? "dynamic_table" : "two_columns_grid"}>
                 <div className="dbcell">
-                    {paymentToken.symbol} LOCKED
+                    <span>{paymentToken.symbol} LOCKED</span>
                     <code>{token(icp_locked, paymentToken.decimals)} </code>
                 </div>
                 <div className="dbcell">
-                    24H TRADES
+                    <span>24H TRADES</span>
                     <code>{trades_day}</code>
                 </div>
                 <div className="dbcell">
-                    24H VOLUME
+                    <span>24H VOLUME</span>
                     <code>
                         {token(volume_day, paymentToken.decimals)}{" "}
                         {paymentToken.symbol}
                     </code>
                 </div>
                 <div className="dbcell">
-                    FEES
+                    <span>FEES</span>
                     <code>{Number(fee) / 100}%</code>
                 </div>
             </div>

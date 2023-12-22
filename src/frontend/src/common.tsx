@@ -100,10 +100,15 @@ export const Button = ({
     );
 };
 
-export const ConnectButton = ({}) => (
+export const ConnectButton = ({ large }: { large?: boolean }) => (
     <button
         className="active"
-        style={{ background: "#6ac2c9", color: "#111111" }}
+        style={{
+            fontSize: large ? "large" : undefined,
+            background: "#4aa2a9",
+            color: "#111111",
+            minWidth: large ? (bigScreen() ? "30%" : "100%") : undefined,
+        }}
         onClick={() =>
             window.authClient.login({
                 onSuccess: () => location.reload(),

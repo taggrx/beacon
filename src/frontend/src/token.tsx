@@ -38,14 +38,18 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     const paymentTokenDataData = window.tokenData[PAYMENT_TOKEN_ID];
     return (
         <>
-            <h1 className="row_container vcentered">
+            <div className="row_container vcentered x_large_text bottom_spaced">
                 <div className="max_width_col">
-                    <img
-                        height="50"
-                        width="50"
-                        src={logo}
-                        className="align-middle"
-                    />
+                    {logo ? (
+                        <img
+                            height="50"
+                            width="50"
+                            src={logo}
+                            className="align-middle right_spaced"
+                        />
+                    ) : (
+                        <span>💎</span>
+                    )}
                     <code className="max_width_col">{symbol}</code>
                 </div>
                 {executedOrders.length > 0 && (
@@ -60,7 +64,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                         {paymentTokenDataData.symbol}
                     </code>
                 )}
-            </h1>
+            </div>
             <Chart
                 tokenId={tokenId}
                 prices={executedOrders.map((order) => Number(order.price))}

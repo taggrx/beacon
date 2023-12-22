@@ -42,7 +42,7 @@ const root = createRoot(document.getElementById("app") as Element);
 const App = () => {
     const [param] = parseHash();
 
-    let content = <Landing />;
+    let content = null;
 
     if (param == "logs") {
         content = <Logs />;
@@ -56,6 +56,7 @@ const App = () => {
                 {content}
             </>,
         );
+
     root.render(<Landing />);
 };
 

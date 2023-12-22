@@ -146,8 +146,8 @@ export const OrderBook = ({
                                 boxSizing: "border-box",
                                 background:
                                     orderType == OrderType.Buy
-                                        ? "green"
-                                        : "red",
+                                        ? "#008800"
+                                        : "#cc0000",
                             }}
                         >
                             {(Number(order.amount) / maxOrderSize) * 100 >

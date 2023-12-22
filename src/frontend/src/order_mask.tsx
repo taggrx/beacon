@@ -117,7 +117,7 @@ export const OrderMask = ({
                     styleArg={{
                         color: "white",
                         background:
-                            orderType == OrderType.Buy ? "green" : "red",
+                            orderType == OrderType.Buy ? "#008800" : "#cc0000",
                     }}
                     label={`${price ? "LIMIT " : "MARKET "}${action}`}
                     onClick={async () => {

@@ -25,18 +25,11 @@ export const Wallet = ({}) => {
     );
     const renderedBalances = renderBalances(window.balances);
     return (
-        <div id="wallet" className="modal column_container small_text">
-            <h2 className="row_container vcentered">
-                <span className="max_width_col">WALLET</span>
-                <Button label="REFRESH" onClick={window.refreshBackendData} />
-                <Button
-                    label="LOGOUT"
-                    onClick={async () => {
-                        await window.authClient.logout();
-                        location.reload();
-                    }}
-                />
-            </h2>
+        <div
+            id="wallet"
+            className="modal column_container small_text top_spaced bottom_spaced"
+        >
+            <h2 className="row_container vcentered">WALLET</h2>
             <div className="row_container vcentered bottom_spaced">
                 <span className="max_width_col">PRINCIPAL:</span>
                 <CopyToClipboard
@@ -71,6 +64,22 @@ export const Wallet = ({}) => {
                     {lockedRenderedBalances}
                 </>
             )}
+            <br />
+            <div className="row_container">
+                <Button
+                    classNameArg="max_width_col"
+                    label="LOGOUT"
+                    onClick={async () => {
+                        await window.authClient.logout();
+                        location.reload();
+                    }}
+                />
+                <Button
+                    classNameArg="max_width_col"
+                    label="REFRESH"
+                    onClick={window.refreshBackendData}
+                />
+            </div>
         </div>
     );
 };
