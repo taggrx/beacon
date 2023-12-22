@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Principal } from "@dfinity/principal";
 import { Order } from "./types";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
@@ -20,6 +21,35 @@ export const token = (amount: BigInt, decimals: number) => {
     let a = Math.floor(n / base);
     let b = n % base;
     return parseFloat(`${a}.${b}`);
+};
+
+export const depositFromWallet = async (
+    tokenId: string,
+    statusCallback: (arg: string) => void,
+) => {
+    const balance = BigInt(window.balances[tokenId]);
+    if (balance <= tokenFee(tokenId)) {
+        return;
+    }
+    const tokenData = window.tokenData[tokenId];
+    if (balance > 0) {
+        statusCallback(
+            `TRANSFERRING ${token(balance, tokenData.decimals)} ${
+                tokenData.symbol
+            } TO BEACON...`,
+        );
+        let result: any = await window.api.transfer(
+            Principal.fromText(tokenId),
+            Principal.from(process.env.CANISTER_ID),
+            window.principalId.toUint8Array(),
+            balance - tokenFee(tokenId),
+        );
+        if ("Err" in result) {
+            console.error(result.Err);
+            statusCallback("🔴 TRANSFER TO BECAON FAILED.");
+            return;
+        }
+    }
 };
 
 export const tokenFee = (tokenId: string) =>

@@ -446,6 +446,44 @@ impl State {
     pub fn trade(
         &mut self,
         trade_type: OrderType,
+        user: Principal,
+        token: TokenId,
+        amount: u128,
+        price: E8sPerToken,
+        now: Timestamp,
+    ) -> Result<(u128, bool), String> {
+        // match existing orders
+        let filled = self.execute_trade(
+            trade_type,
+            user,
+            token,
+            amount,
+            (price > 0).then_some(price),
+            now,
+        )?;
+
+        // create a rest order if the original was not filled and this was a limit order
+        Ok((
+            filled,
+            if filled < amount && price > 0 {
+                self.create_order(
+                    user,
+                    token,
+                    amount.saturating_sub(filled),
+                    price,
+                    now,
+                    trade_type,
+                )?;
+                true
+            } else {
+                false
+            },
+        ))
+    }
+
+    fn execute_trade(
+        &mut self,
+        trade_type: OrderType,
         trader: Principal,
         token: TokenId,
         mut amount: u128,
@@ -521,6 +559,13 @@ impl State {
         }
 
         Ok(filled)
+    }
+
+    pub fn pool_balances(&self) -> Vec<(String, Tokens)> {
+        self.pools
+            .iter()
+            .map(|(id, pool)| (id.to_string(), pool.values().sum()))
+            .collect()
     }
 }
 
@@ -915,12 +960,12 @@ mod tests {
         assert_eq!(
             state
                 .clone()
-                .trade(OrderType::Sell, seller, token, 5, None, 123456),
+                .execute_trade(OrderType::Sell, seller, token, 5, None, 123456),
             Err("not enough tokens".into())
         );
         state.add_liquidity(seller, token, 250).unwrap();
         assert_eq!(
-            state.trade(OrderType::Sell, seller, token, 5, None, 123456),
+            state.execute_trade(OrderType::Sell, seller, token, 5, None, 123456),
             Ok(5)
         );
 
@@ -969,7 +1014,7 @@ mod tests {
         assert_eq!(best_order.price, 10000000);
 
         assert_eq!(
-            state.trade(OrderType::Sell, seller, token, 10, None, 123457),
+            state.execute_trade(OrderType::Sell, seller, token, 10, None, 123457),
             Ok(10)
         );
 
@@ -988,7 +1033,7 @@ mod tests {
 
         // at that point we have buy orders: 25 @ 0.01, 8 @ 0.03
         assert_eq!(
-            state.trade(OrderType::Sell, seller, token, 150, None, 123457),
+            state.execute_trade(OrderType::Sell, seller, token, 150, None, 123457),
             Ok(33)
         );
 
@@ -1094,7 +1139,7 @@ mod tests {
             .unwrap();
         assert_eq!(state.payment_token_pool().len(), 1);
         assert_eq!(
-            state.trade(OrderType::Buy, buyer, token, 10, None, 123456),
+            state.execute_trade(OrderType::Buy, buyer, token, 10, None, 123456),
             Ok(10)
         );
 
@@ -1126,7 +1171,7 @@ mod tests {
             .add_liquidity(buyer, PAYMENT_TOKEN_ID, 6 * 3000000 + 2 * 5000000)
             .unwrap();
         assert_eq!(
-            state.trade(OrderType::Buy, buyer, token, 7, None, 123457),
+            state.execute_trade(OrderType::Buy, buyer, token, 7, None, 123457),
             Ok(7)
         );
         // buyer got 17 tokens
@@ -1144,7 +1189,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            state.trade(OrderType::Buy, buyer, token, 100, None, 123458),
+            state.execute_trade(OrderType::Buy, buyer, token, 100, None, 123458),
             Ok(31)
         );
 
@@ -1222,7 +1267,7 @@ mod tests {
 
         state.add_liquidity(seller, token, 250).unwrap();
         assert_eq!(
-            state.trade(OrderType::Sell, seller, token, 50, Some(2000000), 123456),
+            state.execute_trade(OrderType::Sell, seller, token, 50, Some(2000000), 123456),
             Ok(23)
         );
 
@@ -1286,7 +1331,7 @@ mod tests {
             .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 100000000)
             .unwrap();
         assert_eq!(
-            state.trade(OrderType::Buy, buyer, token, 50, Some(6000000), 123456),
+            state.execute_trade(OrderType::Buy, buyer, token, 50, Some(6000000), 123456),
             Ok(23)
         );
 

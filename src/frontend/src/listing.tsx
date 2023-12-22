@@ -4,10 +4,9 @@ import {
     Button,
     CopyToClipboard,
     PAYMENT_TOKEN_ID,
+    depositFromWallet,
     token,
-    tokenFee,
 } from "./common";
-import { Result } from "./types";
 
 export const Listing = ({ tokenId }: { tokenId: string }) => {
     const [status, setStatus] = React.useState("");
@@ -42,29 +41,13 @@ export const Listing = ({ tokenId }: { tokenId: string }) => {
                     <Button
                         label="LIST TOKEN"
                         onClick={async () => {
-                            let deposit_result: any = await window.api.transfer(
-                                Principal.fromText(PAYMENT_TOKEN_ID),
-                                Principal.fromText(
-                                    process.env.CANISTER_ID || "",
-                                ),
-                                window.principalId.toUint8Array(),
-                                amount - tokenFee(PAYMENT_TOKEN_ID),
+                            await depositFromWallet(
+                                PAYMENT_TOKEN_ID,
+                                setStatus,
                             );
-                            if (!deposit_result) {
-                                setStatus("🔴 Call failed.");
-                                return;
-                            }
-                            if ("Err" in deposit_result) {
-                                console.error(deposit_result.Err);
-                                setStatus(
-                                    "🔴 Error: listing failed. Please check if you deposited enough funds!",
-                                );
-                                return;
-                            }
-                            setStatus("Deposited ICP to Beacon...");
-                            const result = await window.api.call<Result<null>>(
-                                "list_token",
-                                tokenId,
+                            setStatus("LISTING THE TOKEN...");
+                            const result: any = await window.api.list_token(
+                                Principal.from(tokenId),
                             );
                             if (!result) {
                                 setStatus("🔴 Call failed.");

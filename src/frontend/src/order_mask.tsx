@@ -1,7 +1,7 @@
 import * as React from "react";
 import { OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { Button, PAYMENT_TOKEN_ID, token, tokenFee } from "./common";
+import { Button, PAYMENT_TOKEN_ID, depositFromWallet, token } from "./common";
 
 export const OrderMask = ({
     tokenId,
@@ -147,28 +147,8 @@ const executeOrder = async (
 ) => {
     const paymentTokenId =
         orderType == OrderType.Buy ? PAYMENT_TOKEN_ID : tradedTokenId;
-    const paymentToken = window.tokenData[paymentTokenId];
-    const balance =
-        BigInt(window.balances[paymentTokenId]) - tokenFee(paymentTokenId);
-    if (balance > 0) {
-        statusCallback(
-            `Transferring ${token(balance, paymentToken.decimals)} ${
-                paymentToken.symbol
-            } to BEACON...`,
-        );
-        let result: any = await window.api.transfer(
-            Principal.fromText(paymentTokenId),
-            Principal.from(process.env.CANISTER_ID),
-            window.principalId.toUint8Array(),
-            balance,
-        );
-        if ("Err" in result) {
-            console.error(result.Err);
-            statusCallback("🔴 Transfer to BECAON failed.");
-            return;
-        }
-    }
-    statusCallback("Executing your trade...");
+    await depositFromWallet(paymentTokenId, statusCallback);
+    statusCallback("EXECUTING THE TRADE...");
     try {
         let result: any = await window.api.trade(
             Principal.from(tradedTokenId),
@@ -185,11 +165,11 @@ const executeOrder = async (
         const { decimals, symbol } = window.tokenData[tradedTokenId];
         let status =
             filled > 0
-                ? `Order filled for ${token(filled, decimals)} ${symbol}. `
+                ? `ORDER FILLED FOR ${token(filled, decimals)} ${symbol}. `
                 : "";
         status += orderCreated
-            ? "An order was created."
-            : "No order was created.";
+            ? "AN ORDER WAS CREATED."
+            : "NO ORDER WAS CREATED.";
         statusCallback(status);
     } catch (error) {
         console.debug(error);

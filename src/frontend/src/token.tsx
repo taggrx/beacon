@@ -156,6 +156,8 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
 };
 
 const Chart = ({ prices }: { prices: number[] }) => {
+    if (prices.length == 0) return null;
+
     prices.reverse();
     const chartRef = React.useRef(null);
 

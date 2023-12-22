@@ -36,6 +36,8 @@ export type Backend = {
 
     executed_orders: (tokenId: Principal) => Promise<JsonValue>;
 
+    list_token: (tokenId: Principal) => Promise<JsonValue>;
+
     close_order: (
         tokenId: Principal,
         order_type: OrderType,
@@ -185,26 +187,18 @@ export const ApiGenerator = (
             );
             const response = await query_raw(canisterId, "orders", arg);
 
-            if (!response) {
-                throw new Error("Call failed");
-            }
-            if ("Err" in response) {
-                throw new Error(`Error: ${response.Err}`);
-            }
-            return IDL.decode(
-                [
-                    IDL.Vec(
-                        IDL.Record({
-                            owner: IDL.Principal,
-                            amount: IDL.Nat,
-                            price: IDL.Nat,
-                            executed: IDL.Nat64,
-                            timestamp: IDL.Nat64,
-                        }),
-                    ),
-                ],
+            return decode(
                 response,
-            )[0];
+                IDL.Vec(
+                    IDL.Record({
+                        owner: IDL.Principal,
+                        amount: IDL.Nat,
+                        price: IDL.Nat,
+                        executed: IDL.Nat64,
+                        timestamp: IDL.Nat64,
+                    }),
+                ),
+            );
         },
 
         close_order: async (
@@ -232,12 +226,19 @@ export const ApiGenerator = (
             );
             const response = await call_raw(canisterId, "close_order", arg);
 
-            if (!response) {
-                throw new Error("Call failed");
-            }
-            if ("Err" in response) {
-                throw new Error(`Error: ${response.Err}`);
-            }
+            decode(response);
+        },
+
+        list_token: async (tokenId: Principal): Promise<JsonValue> => {
+            const arg = IDL.encode([IDL.Principal], [tokenId]);
+            const response = await call_raw(canisterId, "list_token", arg);
+            return decode(
+                response,
+                IDL.Variant({
+                    Ok: IDL.Null,
+                    Err: IDL.Text,
+                }),
+            );
         },
 
         executed_orders: async (tokenId: Principal): Promise<JsonValue> => {
@@ -247,27 +248,18 @@ export const ApiGenerator = (
                 "executed_orders",
                 arg,
             );
-
-            if (!response) {
-                throw new Error("Call failed");
-            }
-            if ("Err" in response) {
-                throw new Error(`Error: ${response.Err}`);
-            }
-            return IDL.decode(
-                [
-                    IDL.Vec(
-                        IDL.Record({
-                            owner: IDL.Principal,
-                            amount: IDL.Nat,
-                            price: IDL.Nat,
-                            executed: IDL.Nat64,
-                            timestamp: IDL.Nat64,
-                        }),
-                    ),
-                ],
+            return decode(
                 response,
-            )[0];
+                IDL.Vec(
+                    IDL.Record({
+                        owner: IDL.Principal,
+                        amount: IDL.Nat,
+                        price: IDL.Nat,
+                        executed: IDL.Nat64,
+                        timestamp: IDL.Nat64,
+                    }),
+                ),
+            );
         },
 
         trade: async (
@@ -286,35 +278,22 @@ export const ApiGenerator = (
                 [tokenId, amount, price, { [orderType.toString()]: null }],
             );
             const response = await call_raw(canisterId, "trade", arg);
-
-            if (!response) {
-                throw new Error("Call failed");
-            }
-            if ("Err" in response) {
-                throw new Error(`Error: ${response.Err}`);
-            }
-            return IDL.decode(
-                [
-                    IDL.Variant({
-                        Ok: IDL.Tuple(IDL.Nat, IDL.Bool),
-                        Err: IDL.Text,
-                    }),
-                ],
+            return decode(
                 response,
-            )[0];
+                IDL.Variant({
+                    Ok: IDL.Tuple(IDL.Nat, IDL.Bool),
+                    Err: IDL.Text,
+                }),
+            );
         },
 
         withdraw: async (tokenId: Principal) => {
             const arg = IDL.encode([IDL.Principal], [tokenId]);
             const response = await call_raw(canisterId, "withdraw", arg);
-
-            if (!response) {
-                throw new Error("Call failed");
-            }
-            return IDL.decode(
-                [IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown })],
+            return decode(
                 response,
-            )[0];
+                IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown }),
+            );
         },
 
         transfer: async (
@@ -348,14 +327,10 @@ export const ApiGenerator = (
                 ],
             );
             const response = await call_raw(tokenId, "icrc1_transfer", arg);
-
-            if (!response) {
-                throw new Error("Call failed");
-            }
-            return IDL.decode(
-                [IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown })],
+            return decode(
                 response,
-            )[0];
+                IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown }),
+            );
         },
     };
 };
@@ -367,4 +342,15 @@ const getEffParams = <T>(args: T[]): T | T[] | null => {
         return values[0];
     }
     return values;
+};
+
+const decode = (result: any, type?: any) => {
+    if (!result) {
+        throw new Error("Call failed");
+    }
+    if ("Err" in result) {
+        throw new Error(`Error: ${result.Err}`);
+    }
+    if (!type) return {};
+    return IDL.decode([type], result)[0];
 };
