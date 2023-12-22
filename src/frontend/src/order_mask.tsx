@@ -71,7 +71,7 @@ export const OrderMask = ({
 
     return (
         <div className="column_container bottom_spaced max_width_col">
-            <div style={{ opacity: blocked ? "0.5" : undefined }}>
+            <div className={blocked ? "inactive" : undefined}>
                 <div className="row_container vcentered bottom_spaced modal">
                     TOTAL
                     <input

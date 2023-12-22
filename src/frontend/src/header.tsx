@@ -15,8 +15,9 @@ export const Header = ({}) => {
                 </h3>
                 {window.principalId ? (
                     <span
-                        className="clickable row_container vcentered"
-                        style={showWallet ? { opacity: "0.5" } : undefined}
+                        className={`clickable row_container vcentered ${
+                            showWallet ? "inactive" : ""
+                        }`}
                         onClick={() => setShowWallet(!showWallet)}
                     >
                         <svg

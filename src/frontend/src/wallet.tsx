@@ -59,10 +59,10 @@ export const Wallet = ({}) => {
                 </>
             )}
             {lockedRenderedBalances.length > 0 && (
-                <>
+                <div className="inactive">
                     <h3>LOCKED IN ORDERS</h3>
                     {lockedRenderedBalances}
-                </>
+                </div>
             )}
             <br />
             <div className="row_container">

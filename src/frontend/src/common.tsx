@@ -92,12 +92,10 @@ export const Button = ({
 }) => {
     const [loading, setLoading] = React.useState(false);
     const off = disabled || loading;
-    if (off) styleArg.opacity = "0.5";
-    else delete styleArg.opacity;
     return (
         <button
             style={styleArg}
-            className={classNameArg}
+            className={classNameArg + " " + (off ? "inactive" : "")}
             disabled={off}
             onClick={async () => {
                 setLoading(true);
