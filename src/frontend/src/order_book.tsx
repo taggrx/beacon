@@ -67,7 +67,10 @@ export const OrderBook = ({
                     {token(order.amount, tokenData.decimals)} {tokenData.symbol}
                 </td>
                 <td>
-                    {token(order.price, paymentTokenDataData.decimals)}{" "}
+                    {token(
+                        humanReadablePrice(order.price, tokenId),
+                        paymentTokenDataData.decimals,
+                    )}{" "}
                     {paymentTokenDataData.symbol}
                 </td>
                 <td style={{ textAlign: "right" }}>
@@ -173,7 +176,7 @@ export const OrderBook = ({
             </div>
             {(userOrders.buy.length > 0 || userOrders.sell.length > 0) && (
                 <>
-                    <h2>YOUR PENDING ORDERS</h2>
+                    <h2>YOUR STANDING ORDERS</h2>
                     <table>
                         <tbody>
                             {userOrdersList(userOrders.buy, OrderType.Buy)}
