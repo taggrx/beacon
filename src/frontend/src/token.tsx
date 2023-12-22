@@ -28,7 +28,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         return <Listing tokenId={tokenId} />;
     }
 
-    const { symbol, logo, realm } = metadata;
+    const { symbol, logo } = metadata;
     const callback = () => {
         window.refreshBackendData();
         setHeartbeat(new Date());
@@ -150,11 +150,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 </>
             )}
             <br />
-            <h2>{realm ? "REALM" : "MENTIONS"} ON TAGGR</h2>
+            <h2>MENTIONS ON TAGGR</h2>
             <iframe
-                src={`https://6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app/#/${
-                    realm ? "realm/" + realm : "feed/" + symbol
-                }`}
+                src={`https://6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app/#/feed/${symbol}`}
                 title={`${symbol} on Taggr`}
             />
         </>

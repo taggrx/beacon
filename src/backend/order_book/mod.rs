@@ -97,7 +97,6 @@ pub struct Metadata {
     pub fee: Tokens,
     pub decimals: u32,
     pub logo: Option<String>,
-    pub realm: Option<String>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -123,14 +122,12 @@ impl State {
             metadata.get("icrc1:fee"),
             metadata.get("icrc1:decimals"),
             metadata.get("icrc1:logo"),
-            metadata.get("taggr:realm"),
         ) {
             (
                 Some(Value::Text(symbol)),
                 Some(Value::Nat(fee)),
                 Some(Value::Nat(decimals)),
                 logo,
-                realm,
             ) => {
                 self.add_token(
                     token,
@@ -141,14 +138,10 @@ impl State {
                         Some(Value::Text(hex)) => Some(hex.clone()),
                         _ => None,
                     },
-                    match realm {
-                        Some(Value::Text(name)) => Some(name.clone()),
-                        _ => None,
-                    },
                 );
                 Ok(())
             }
-            (symbol, fee, decimals, _, _) => Err(format!(
+            (symbol, fee, decimals, _) => Err(format!(
                 "one of the required values missing: symbol={:?}, fee={:?}, decimals={:?}",
                 symbol, fee, decimals
             )),
@@ -343,7 +336,6 @@ impl State {
         fee: Tokens,
         decimals: u32,
         logo: Option<String>,
-        realm: Option<String>,
     ) {
         self.tokens.insert(
             id,
@@ -352,7 +344,6 @@ impl State {
                 logo,
                 fee,
                 decimals,
-                realm,
             },
         );
         self.pools.insert(id, Default::default());
@@ -713,7 +704,6 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
-                realm: None,
             },
         );
     }
@@ -764,7 +754,6 @@ mod tests {
             25, // fee
             2,  // decimals
             None,
-            None,
         );
 
         state.add_liquidity(pr(1), PAYMENT_TOKEN_ID, 21000).unwrap();
@@ -812,7 +801,6 @@ mod tests {
             "TAGGR".into(),
             25, // fee
             2,  // decimals
-            None,
             None,
         );
 
@@ -915,7 +903,6 @@ mod tests {
             25, // fee
             2,  // decimals
             None,
-            None,
         );
 
         state.add_liquidity(pr(0), token, 111).unwrap();
@@ -975,7 +962,7 @@ mod tests {
             Err("token not listed".into())
         );
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None);
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         assert_eq!(
@@ -1161,7 +1148,7 @@ mod tests {
             Err("token not listed".into())
         );
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         assert_eq!(
@@ -1306,7 +1293,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None);
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         state
@@ -1366,7 +1353,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();
@@ -1433,7 +1420,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();
