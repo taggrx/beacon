@@ -181,6 +181,8 @@ const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
             (value: number) => ((value - yMin) / scale) * 100,
         );
 
+        const skipLablesNum = Math.floor(data.length / 8);
+
         yMax = Math.max(...data);
 
         const margin = 50;
@@ -200,14 +202,18 @@ const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
             const x = i * xScale + margin;
             const y = canvas.height - margin - data[i] * yScale;
             ctx.lineTo(x, y);
-            ctx.fillText(
-                token(
-                    humanReadablePrice(BigInt(Math.floor(prices[i])), tokenId),
-                    window.tokenData[PAYMENT_TOKEN_ID].decimals,
-                ).toString(),
-                x - 15,
-                Math.max(y + 20, 0),
-            );
+            if (i % skipLablesNum == 0)
+                ctx.fillText(
+                    token(
+                        humanReadablePrice(
+                            BigInt(Math.floor(prices[i])),
+                            tokenId,
+                        ),
+                        window.tokenData[PAYMENT_TOKEN_ID].decimals,
+                    ).toString(),
+                    x - 15,
+                    Math.max(y + 20, 0),
+                );
         }
         ctx.stroke();
     }, [prices]);
