@@ -16,10 +16,11 @@ export const II_DERIVATION_URL = mainnetMode
     : window.location.origin;
 
 export const token = (amount: BigInt, decimals: number) => {
-    let n = Number(amount);
-    let base = Math.pow(10, decimals);
-    let a = Math.floor(n / base);
-    let b = n % base;
+    const n = Number(amount);
+    const base = Math.pow(10, decimals);
+    const a = Math.floor(n / base);
+    let b = `${n % base}`;
+    while (b.length < decimals) b = "0" + b;
     return parseFloat(`${a}.${b}`);
 };
 
