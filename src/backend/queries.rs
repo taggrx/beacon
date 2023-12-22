@@ -87,7 +87,12 @@ fn data() {
                 .map(|order| order.amount * order.price)
                 .sum(),
             trades_day: day_orders.count() as u64,
-            icp_locked: state.payment_token_pool().values().sum(),
+            icp_locked: state
+                .funds_under_management()
+                .iter()
+                .find_map(|(id, balance)| (&PAYMENT_TOKEN_ID.to_string() == id).then_some(balance))
+                .copied()
+                .unwrap_or_default(),
             e8s_per_xdr: state.e8s_per_xdr,
             fee: TX_FEE,
         }

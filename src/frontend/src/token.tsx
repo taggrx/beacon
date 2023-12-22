@@ -48,7 +48,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                             className="align-middle right_spaced"
                         />
                     ) : (
-                        <span>💎</span>
+                        <span>💎 </span>
                     )}
                     <code className="max_width_col">{symbol}</code>
                 </div>
