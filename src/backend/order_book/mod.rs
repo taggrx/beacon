@@ -7,7 +7,9 @@ use candid::{CandidType, Principal};
 use ic_ledger_types::MAINNET_LEDGER_CANISTER_ID;
 use serde::{Deserialize, Serialize};
 
-const PAYMENT_TOKEN_ID: Principal = MAINNET_LEDGER_CANISTER_ID;
+use crate::icrc1::Value;
+
+pub const PAYMENT_TOKEN_ID: Principal = MAINNET_LEDGER_CANISTER_ID;
 pub type Timestamp = u64;
 pub type Tokens = u128;
 pub type TokenId = Principal;
@@ -110,6 +112,48 @@ pub struct State {
 }
 
 impl State {
+    pub fn list_token(
+        &mut self,
+        token: TokenId,
+        metadata: BTreeMap<String, Value>,
+    ) -> Result<(), String> {
+        match (
+            metadata.get("icrc1:symbol"),
+            metadata.get("icrc1:fee"),
+            metadata.get("icrc1:decimals"),
+            metadata.get("icrc1:logo"),
+            metadata.get("taggr:realm"),
+        ) {
+            (
+                Some(Value::Text(symbol)),
+                Some(Value::Nat(fee)),
+                Some(Value::Nat(decimals)),
+                logo,
+                realm,
+            ) => {
+                self.add_token(
+                    token,
+                    symbol.clone(),
+                    *fee,
+                    *decimals as u32,
+                    match logo {
+                        Some(Value::Text(hex)) => Some(hex.clone()),
+                        _ => None,
+                    },
+                    match realm {
+                        Some(Value::Text(name)) => Some(name.clone()),
+                        _ => None,
+                    },
+                );
+                Ok(())
+            }
+            (symbol, fee, decimals, _, _) => Err(format!(
+                "one of the required values missing: symbol={:?}, fee={:?}, decimals={:?}",
+                symbol, fee, decimals
+            )),
+        }
+    }
+
     pub fn payment_token_pool(&self) -> &BTreeMap<Principal, Tokens> {
         self.pools
             .get(&PAYMENT_TOKEN_ID)
@@ -255,6 +299,22 @@ impl State {
             .ok_or("no token listed".into())
     }
 
+    pub fn charge(&mut self, user: Principal, amount: Tokens) -> Result<(), String> {
+        let payment_token_pool = self
+            .pools
+            .get_mut(&PAYMENT_TOKEN_ID)
+            .ok_or("token not found")?;
+        let balance = payment_token_pool.entry(user).or_insert(0);
+        *balance = balance.checked_sub(amount).ok_or("not enough funds")?;
+        payment_token_pool
+            .entry(self.revenue_account.expect("no revenue account set"))
+            .and_modify(|balance| *balance += amount)
+            .or_insert(amount);
+
+        self.log(format!("{} paid {} tokens", user, amount));
+        Ok(())
+    }
+
     pub fn add_liquidity(
         &mut self,
         user: Principal,
@@ -308,7 +368,7 @@ impl State {
         Ok(result)
     }
 
-    pub fn add_token(
+    fn add_token(
         &mut self,
         id: TokenId,
         symbol: String,
@@ -587,6 +647,7 @@ mod tests {
                     fee: DEFAULT_FEE.e8s() as u128,
                     decimals: 8,
                     logo: None,
+                    realm: None,
                 },
             );
 
@@ -602,6 +663,7 @@ mod tests {
                 "TAGGR".into(),
                 25, // fees
                 2,  // decimals
+                None,
                 None,
             );
 
@@ -702,6 +764,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                realm: None,
             },
         );
 
@@ -717,6 +780,7 @@ mod tests {
             "TAGGR".into(),
             25, // fees
             2,  // decimals
+            None,
             None,
         );
 
@@ -774,6 +838,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                realm: None,
             },
         );
 
@@ -786,7 +851,7 @@ mod tests {
             Err("token not listed".into())
         );
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         assert_eq!(
@@ -825,7 +890,7 @@ mod tests {
             .is_ok());
 
         // buyer has 0.01 ICP left minus fee
-        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &937500);
+        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &997500);
 
         let buyer_orders = &state.orders.get(&token).unwrap().buyers;
         assert_eq!(
@@ -888,7 +953,7 @@ mod tests {
             &(volume - fee_per_side)
         );
         // buyer should have previous amount - volume - fee;
-        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &9825000);
+        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &9993000);
         // fee account has 2 fees
         assert_eq!(
             state.payment_token_pool().get(&pr(255)).unwrap(),
@@ -961,6 +1026,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                realm: None,
             },
         );
 
@@ -975,7 +1041,7 @@ mod tests {
             Err("token not listed".into())
         );
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         assert_eq!(
@@ -1116,6 +1182,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                realm: None,
             },
         );
 
@@ -1123,7 +1190,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         state
@@ -1183,6 +1250,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                realm: None,
             },
         );
 
@@ -1190,7 +1258,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();
@@ -1257,6 +1325,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                realm: None,
             },
         );
 
@@ -1264,7 +1333,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        state.add_token(token, "TAGGR".into(), 25, 2, None, None);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();

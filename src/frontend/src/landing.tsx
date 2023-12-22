@@ -27,6 +27,9 @@ export const Landing = ({}) => {
                 <h3>
                     <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
                 </h3>
+                <h4 className="alert">
+                    ALPHA VERSION: DON'T USE WITH LARGE AMOUNTS!
+                </h4>
             </div>
             <br />
             <div className={bigScreen() ? "dynamic_table" : "two_columns_grid"}>
