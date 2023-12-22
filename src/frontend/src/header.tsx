@@ -38,6 +38,7 @@ export const Header = ({}) => {
                 )}
             </header>
             {showWallet && window.principalId && <Wallet />}
+            <br />
         </>
     );
 };

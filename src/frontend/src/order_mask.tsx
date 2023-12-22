@@ -51,7 +51,14 @@ export const OrderMask = ({
                     <span>
                         FOR{" "}
                         <code>
-                            {token(BigInt(parsedPrice), paymentToken.decimals)}
+                            {token(
+                                BigInt(
+                                    (parsedPrice /
+                                        Math.pow(10, tokenDecimals)) *
+                                        parsedAmount,
+                                ),
+                                paymentToken.decimals,
+                            )}
                         </code>{" "}
                         <u>{paymentToken.symbol}</u>
                     </span>
