@@ -1,3 +1,8 @@
+import { AuthClient } from "@dfinity/auth-client";
+import { Header } from "./header";
+import { Metadata } from "./types";
+import { Landing } from "./landing";
+import { Logs } from "./logs";
 import { createRoot } from "react-dom/client";
 import { Token } from "./token";
 import { ApiGenerator, Backend } from "./api";
@@ -36,7 +41,9 @@ const App = () => {
 
     let content = <Landing />;
 
-    if (typeof param == "string") {
+    if (param == "logs") {
+        content = <Logs />;
+    } else if (typeof param == "string") {
         content = <Token tokenId={param} />;
     }
     if (content)
@@ -49,10 +56,6 @@ const App = () => {
     root.render(<Landing />);
 };
 
-import { AuthClient } from "@dfinity/auth-client";
-import { Header } from "./header";
-import { Metadata } from "./types";
-import { Landing } from "./landing";
 AuthClient.create({ idleOptions: { disableIdle: true } }).then(
     async (authClient) => {
         window.authClient = authClient;

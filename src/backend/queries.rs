@@ -11,6 +11,11 @@ fn tokens() {
     read(|state| reply(state.tokens()));
 }
 
+#[export_name = "canister_query logs"]
+fn logs() {
+    read(|state| reply(state.logs()));
+}
+
 #[export_name = "canister_query prices"]
 fn prices() {
     read(|state| {

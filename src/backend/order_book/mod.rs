@@ -113,7 +113,8 @@ pub struct State {
     pub tokens: BTreeMap<TokenId, Metadata>,
     pub e8s_per_xdr: u64,
     pub revenue_account: Option<Principal>,
-    pub logs: VecDeque<String>,
+    pub logs: VecDeque<(u64, String)>,
+    event_id: u64,
 }
 
 impl State {
@@ -174,10 +175,9 @@ impl State {
 
     fn log(&mut self, message: String) {
         ic_cdk::println!("{}", &message);
-        self.logs.push_front(message);
-        while self.logs.len() > 1000 {
-            self.logs.pop_back();
-        }
+        let event_id = self.event_id;
+        self.event_id += 1;
+        self.logs.push_front((event_id, message));
     }
 
     pub fn close_order(
@@ -299,6 +299,10 @@ impl State {
                 )
             })
             .collect()
+    }
+
+    pub fn logs(&self) -> &VecDeque<(u64, String)> {
+        &self.logs
     }
 
     pub fn tokens(&self) -> &'_ BTreeMap<TokenId, Metadata> {
