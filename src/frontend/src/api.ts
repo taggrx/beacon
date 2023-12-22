@@ -296,13 +296,7 @@ export const ApiGenerator = (
                 [tokenId, amount, price, { [orderType.toString()]: null }],
             );
             const response = await call_raw(canisterId, "trade", arg);
-            return decode(
-                response,
-                IDL.Variant({
-                    Ok: IDL.Tuple(IDL.Nat, IDL.Bool),
-                    Err: IDL.Text,
-                }),
-            );
+            return decode(response, IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Bool)));
         },
 
         withdraw: async (tokenId: Principal) => {

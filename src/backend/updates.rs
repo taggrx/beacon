@@ -112,8 +112,8 @@ async fn trade(
     amount: u128,
     price: Tokens,
     order_type: OrderType,
-) -> Result<(u128, bool), String> {
-    Ok(mutate(|state| {
+) -> Vec<(u128, bool)> {
+    vec![mutate(|state| {
         state
             .trade(
                 order_type,
@@ -124,7 +124,7 @@ async fn trade(
                 ic_cdk::api::time(),
             )
             .expect("trade failed")
-    }))
+    })]
 }
 
 #[update]

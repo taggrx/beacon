@@ -157,18 +157,12 @@ const executeOrder = async (
     await depositFromWallet(paymentTokenId, statusCallback);
     statusCallback("EXECUTING THE TRADE...");
     try {
-        let result: any = await window.api.trade(
+        let [[filled, orderCreated]]: any = await window.api.trade(
             Principal.from(tradedTokenId),
             amount,
             price,
             orderType,
         );
-        if ("Err" in result) {
-            console.error(result.Err);
-            statusCallback(`Error: ${JSON.stringify(result.Err)}`);
-            return;
-        }
-        let [filled, orderCreated] = result.Ok;
         const { decimals, symbol } = window.tokenData[tradedTokenId];
         let status =
             filled > 0
