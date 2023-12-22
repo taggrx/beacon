@@ -95,9 +95,10 @@ export const Landing = ({}) => {
                 <button
                     onClick={() => {
                         try {
-                            const id = Principal.fromText(
-                                prompt("Enter the canister id:") || "",
-                            );
+                            const input =
+                                prompt("Enter the canister id:") || "";
+                            if (!input) return;
+                            const id = Principal.fromText(input);
                             if (!id) return;
                             location.href = `#/${id.toString()}`;
                         } catch (e) {
