@@ -90,9 +90,11 @@ export const OrderMask = ({
                     <input
                         disabled={blocked}
                         placeholder={
-                            orderType == OrderType.Buy
+                            (orderType == OrderType.Buy
                                 ? "BID PRICE"
-                                : "ASK PRICE"
+                                : "ASK PRICE") +
+                            " PER 1 " +
+                            icrcToken.symbol
                         }
                         className="max_width_col"
                         value={price}
@@ -128,6 +130,12 @@ export const OrderMask = ({
                     }}
                     label={`${price ? "LIMIT " : "MARKET "}${action}`}
                     onClick={async () => {
+                        if (tokenDecimals > 3) {
+                            alert(
+                                "This token will be enabled in a couple of days.",
+                            );
+                            return;
+                        }
                         setBlocked(true);
                         await executeOrder(
                             tokenId,
