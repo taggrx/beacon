@@ -15,10 +15,15 @@ export const II_DERIVATION_URL = mainnetMode
     ? `https://${process.env.CANISTER_ID}.icp0.io`
     : window.location.origin;
 
-export const token = (amount: BigInt, decimals: number) => {
+export const token = (
+    amount: BigInt,
+    decimals: number,
+    showDecimals: boolean = true,
+) => {
     const n = Number(amount);
     const base = Math.pow(10, decimals);
     const a = Math.floor(n / base);
+    if (!showDecimals) return a.toLocaleString();
     let b = `${n % base}`;
     while (b.length < decimals) b = "0" + b;
     return parseFloat(`${a}.${b}`);

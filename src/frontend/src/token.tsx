@@ -69,7 +69,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 tokenId={tokenId}
                 prices={executedOrders.map((order) => Number(order.price))}
             />
-            {orderCreation && (
+            {window.principalId && orderCreation && (
                 <OrderMask
                     tokenId={tokenId}
                     symbol={symbol}
@@ -78,7 +78,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     cancelCallback={() => setOrderCreation(null)}
                 />
             )}
-            {!orderCreation && (
+            {window.principalId && !orderCreation && (
                 <div className="row_container">
                     {[OrderType.Buy, OrderType.Sell].map((type, i) => (
                         <button
@@ -111,7 +111,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 <>
                     <h2>EXECUTED ORDERS</h2>
                     <table
-                        className="small_text bottom_spaced"
+                        className="x_small_text bottom_spaced"
                         style={{ width: "100%" }}
                     >
                         <tbody>

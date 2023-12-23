@@ -153,15 +153,14 @@ export const OrderBook = ({
                                         : "#cc0000",
                             }}
                         >
+                            {token(
+                                order.amount,
+                                window.tokenData[tokenId].decimals,
+                            )}
                             {(Number(order.amount) / maxOrderSize) * 100 >
                             20 ? (
-                                `${token(
-                                    order.amount,
-                                    window.tokenData[tokenId].decimals,
-                                )} ${window.tokenData[tokenId].symbol}`
-                            ) : (
-                                <span>&nbsp;</span>
-                            )}
+                                <> {window.tokenData[tokenId].symbol}</>
+                            ) : null}
                         </div>
                     </div>
                 ))}
