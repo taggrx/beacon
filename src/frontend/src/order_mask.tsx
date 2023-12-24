@@ -26,6 +26,7 @@ export const OrderMask = ({
     const icrcToken = window.tokenData[tokenId];
     const tokenDecimals = icrcToken.decimals;
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
+    const tokenBase = Math.pow(10, tokenDecimals);
 
     React.useEffect(() => {
         const parsedAmount = parseNumber(amount, tokenDecimals);
@@ -53,9 +54,10 @@ export const OrderMask = ({
                         <code>
                             {token(
                                 BigInt(
-                                    (parsedPrice /
-                                        Math.pow(10, tokenDecimals)) *
-                                        parsedAmount,
+                                    Math.floor(
+                                        (parsedPrice * parsedAmount) /
+                                            tokenBase,
+                                    ),
                                 ),
                                 paymentToken.decimals,
                             )}
@@ -140,7 +142,7 @@ export const OrderMask = ({
                         await executeOrder(
                             tokenId,
                             BigInt(parsedAmount),
-                            BigInt(parsedPrice / Math.pow(10, tokenDecimals)),
+                            BigInt(parsedPrice),
                             orderType,
                             setStatus,
                         );

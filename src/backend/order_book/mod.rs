@@ -37,16 +37,26 @@ impl OrderType {
 pub struct Order {
     order_type: OrderType,
     owner: Principal,
-    pub amount: Tokens,
-    pub price: E8sPerToken,
+    amount: Tokens,
+    price: E8sPerToken,
     timestamp: Timestamp,
+    decimals: u32,
     pub executed: Timestamp,
 }
 
 impl Order {
+    pub fn price(&self) -> E8sPerToken {
+        self.price
+    }
+
+    pub fn volume(&self) -> Tokens {
+        let token_base = 10_u128.pow(self.decimals);
+        (self.amount * self.price) / token_base
+    }
+
     fn reserved_liquidity(&self) -> Tokens {
         if self.order_type.buy() {
-            let volume = self.amount * self.price;
+            let volume = self.volume();
             volume + trading_fee(volume)
         } else {
             self.amount
@@ -187,28 +197,31 @@ impl State {
                 OrderType::Sell => &mut book.sellers,
             })
             .ok_or("no token found")?;
-        let order = Order {
-            order_type,
-            owner: user,
-            price,
-            amount,
-            timestamp,
-            executed: 0,
-        };
+        let order = orders
+            .get(&Order {
+                order_type,
+                owner: user,
+                price,
+                amount,
+                timestamp,
+                decimals: 0,
+                executed: 0,
+            })
+            .ok_or("no order found")?
+            .clone();
         let reserved_liquidity = order.reserved_liquidity();
-        if orders.remove(&order) {
-            self.add_liquidity(
-                user,
-                if order_type.buy() {
-                    PAYMENT_TOKEN_ID
-                } else {
-                    token
-                },
-                reserved_liquidity,
-            )
-        } else {
-            Err("order not found".into())
+        if !orders.remove(&order) {
+            return Err("order not found".into());
         }
+        self.add_liquidity(
+            user,
+            if order_type.buy() {
+                PAYMENT_TOKEN_ID
+            } else {
+                token
+            },
+            reserved_liquidity,
+        )
     }
 
     pub fn orders(
@@ -364,15 +377,14 @@ impl State {
         if price == 0 {
             return Err("limit price is 0".into());
         }
-        if !self.tokens.contains_key(&token) {
-            return Err("token not listed".into());
-        }
+        let metadata = self.tokens.get(&token).ok_or("token not listed")?;
 
         let order = Order {
             order_type,
             owner: user,
             amount,
             price,
+            decimals: metadata.decimals,
             timestamp,
             executed: 0,
         };
@@ -609,7 +621,7 @@ fn adjust_pools(
         .get_mut(&PAYMENT_TOKEN_ID)
         .ok_or("no payment pool found")?;
 
-    let volume = order.amount * order.price;
+    let volume = order.volume();
     let fee = trading_fee(volume);
 
     // We only need to subtract payment liquidity if we're executing a buying trade, becasue we
@@ -631,7 +643,7 @@ fn adjust_pools(
 }
 
 fn trading_fee(volume: E8s) -> u128 {
-    volume * TX_FEE / DEFAULT_FEE.e8s() as u128
+    (volume * TX_FEE / DEFAULT_FEE.e8s() as u128).max(1)
 }
 
 #[cfg(test)]
@@ -709,6 +721,16 @@ mod tests {
         result
     }
 
+    fn list_test_token(state: &mut State, token: TokenId, decimals: u32) {
+        state.add_token(
+            token,
+            "TAGGR".into(),
+            25, // fee
+            decimals,
+            None,
+        );
+    }
+
     fn list_payment_token(state: &mut State) {
         state.revenue_account = Some(pr(255));
         state.pools.insert(PAYMENT_TOKEN_ID, Default::default());
@@ -730,6 +752,7 @@ mod tests {
             owner: pr(16),
             amount: 12,
             price: 0,
+            decimals: 6,
             timestamp: 111,
             executed: 0,
         };
@@ -738,6 +761,7 @@ mod tests {
             owner: pr(16),
             amount: 32,
             price: 0,
+            decimals: 6,
             timestamp: 111,
             executed: 0,
         };
@@ -760,18 +784,11 @@ mod tests {
     #[test]
     fn test_simplest_trade() {
         let state = &mut State::default();
-        list_payment_token(state);
         let token = pr(100);
+        list_payment_token(state);
+        list_test_token(state, token, 2);
 
-        state.add_token(
-            token,
-            "TAGGR".into(),
-            25, // fee
-            2,  // decimals
-            None,
-        );
-
-        state.add_liquidity(pr(1), PAYMENT_TOKEN_ID, 21000).unwrap();
+        state.add_liquidity(pr(1), PAYMENT_TOKEN_ID, 210).unwrap();
         assert_eq!(trading_fee(20000), 2);
         assert_eq!(
             create_order(state, pr(1), token, 1, 0, 0, OrderType::Buy),
@@ -810,14 +827,7 @@ mod tests {
             state.add_liquidity(pr(0), token, 111),
             Err("token not found".into())
         );
-
-        state.add_token(
-            token,
-            "TAGGR".into(),
-            25, // fee
-            2,  // decimals
-            None,
-        );
+        list_test_token(state, token, 2);
 
         state.add_liquidity(pr(0), token, 111).unwrap();
         state.add_liquidity(pr(0), token, 222).unwrap();
@@ -848,11 +858,11 @@ mod tests {
         assert_eq!(state.token_balances(pr(0)).get(&token).unwrap().0, 333);
 
         state
-            .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 10000000)
+            .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 100000)
             .unwrap();
         assert!(create_order(state, pr(0), token, 3, 10000000, 0, OrderType::Buy).is_ok());
 
-        let volume = 3 * 10000000;
+        let volume = 3 * 100000;
 
         assert_eq!(
             state
@@ -861,7 +871,7 @@ mod tests {
                 .copied()
                 .unwrap()
                 .0,
-            8 * 10000000 - volume - trading_fee(volume)
+            8 * 100000 - volume - trading_fee(volume)
         );
 
         assert_eq!(
@@ -871,7 +881,7 @@ mod tests {
 
         assert!(create_order(state, pr(0), token, 4, 10000000, 0, OrderType::Buy).is_ok());
 
-        let volume2 = 4 * 10000000;
+        let volume2 = 4 * 100000;
         assert_eq!(
             state
                 .token_balances(pr(0))
@@ -879,7 +889,7 @@ mod tests {
                 .copied()
                 .unwrap()
                 .0,
-            8 * 10000000 - volume - trading_fee(volume) - volume2 - trading_fee(volume2)
+            8 * 100000 - volume - trading_fee(volume) - volume2 - trading_fee(volume2)
         );
         assert_eq!(
             close_order(state, pr(0), token, 3, 10000000, 0, OrderType::Buy),
@@ -896,7 +906,7 @@ mod tests {
                 .copied()
                 .unwrap()
                 .0,
-            8 * 10000000
+            8 * 100000
         );
     }
 
@@ -911,14 +921,7 @@ mod tests {
             state.add_liquidity(pr(0), token, 111),
             Err("token not found".into())
         );
-
-        state.add_token(
-            token,
-            "TAGGR".into(),
-            25, // fee
-            2,  // decimals
-            None,
-        );
+        list_test_token(state, token, 2);
 
         state.add_liquidity(pr(0), token, 111).unwrap();
         state.add_liquidity(pr(0), token, 222).unwrap();
@@ -977,7 +980,7 @@ mod tests {
             Err("token not listed".into())
         );
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        list_test_token(state, token, 2);
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         assert_eq!(
@@ -986,31 +989,31 @@ mod tests {
         );
 
         state
-            .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 10000000)
+            .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 8 * 100000)
             .unwrap();
         assert!(create_order(state, pr(0), token, 7, 10000000, 0, OrderType::Buy).is_ok());
 
         // buy order for 16 $TAGGR / 0.03 ICP each
         state
-            .add_liquidity(pr(1), PAYMENT_TOKEN_ID, 17 * 30000000)
+            .add_liquidity(pr(1), PAYMENT_TOKEN_ID, 17 * 300000)
             .unwrap();
         assert!(create_order(state, pr(1), token, 16, 3000000, 0, OrderType::Buy).is_ok());
 
         // buy order for 25 $TAGGR / 0.01 ICP each
         state
-            .add_liquidity(pr(2), PAYMENT_TOKEN_ID, 24 * 1000000)
+            .add_liquidity(pr(2), PAYMENT_TOKEN_ID, 24 * 10000)
             .unwrap();
         assert_eq!(
             create_order(state, pr(2), token, 25, 1000000, 0, OrderType::Buy),
             Err("not enough funds available for this order size".into())
         );
         state
-            .add_liquidity(pr(2), PAYMENT_TOKEN_ID, 2 * 1000000)
+            .add_liquidity(pr(2), PAYMENT_TOKEN_ID, 2 * 10000)
             .unwrap();
         assert!(create_order(state, pr(2), token, 25, 1000000, 0, OrderType::Buy).is_ok());
 
         // buyer has 0.01 ICP left minus fee
-        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &997500);
+        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &9975);
 
         let buyer_orders = &state.orders.get(&token).unwrap().buyers;
         assert_eq!(
@@ -1072,14 +1075,14 @@ mod tests {
         // now seller should get a balance too, plus the fee acount
         assert_eq!(state.payment_token_pool().len(), 5);
         // seller has expected amount of ICP: 5 * 0.1 ICP - fee
-        let volume = 50000000;
+        let volume = 500000;
         let fee_per_side = trading_fee(volume);
         assert_eq!(
             state.payment_token_pool().get(&seller).unwrap(),
             &(volume - fee_per_side)
         );
         // buyer should have previous amount - volume - fee;
-        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &9993000);
+        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &99930);
         // fee account has 2 fee
         assert_eq!(
             state.payment_token_pool().get(&pr(255)).unwrap(),
@@ -1129,7 +1132,7 @@ mod tests {
         assert_eq!(state.pools.get(&token).unwrap().get(&pr(2)).unwrap(), &25);
 
         // executed orders: 25 @ 0.1, 16 @ 0.03, 7 @ 0.05
-        let (v1, v2, v3) = (25 * 1000000, 16 * 3000000, 7 * 10000000);
+        let (v1, v2, v3) = (25 * 10000, 16 * 30000, 7 * 100000);
         let fee = trading_fee(v1) + trading_fee(v2) + trading_fee(v3);
         assert_eq!(
             state.payment_token_pool().get(&seller).unwrap(),
@@ -1163,7 +1166,7 @@ mod tests {
             Err("token not listed".into())
         );
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        list_test_token(state, token, 2);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         assert_eq!(
@@ -1218,7 +1221,7 @@ mod tests {
         // since we had no ICP we didn't buy anything
         assert_eq!(state.pools.get(&token).unwrap().get(&buyer), None);
         state
-            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 3000000)
+            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 30000)
             .unwrap();
         assert_eq!(state.payment_token_pool().len(), 1);
         assert_eq!(
@@ -1251,7 +1254,7 @@ mod tests {
         // let's buy more
         // at that point we have buy orders: 6 @ 0.03, 7 @ 0.05, 25 @ 1
         state
-            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 6 * 3000000 + 2 * 5000000)
+            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 6 * 30000 + 2 * 5000)
             .unwrap();
         assert_eq!(
             trade(state, OrderType::Buy, buyer, token, 7, None, 123457),
@@ -1268,7 +1271,7 @@ mod tests {
         assert_eq!(best_order.price, 5000000);
 
         state
-            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 6 * 5000000 + 28 * 100000000)
+            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 6 * 50000 + 28 * 1000000)
             .unwrap();
 
         assert_eq!(
@@ -1277,7 +1280,7 @@ mod tests {
         );
 
         // all sellers got ICP
-        let (v2, v1, v3) = (16 * 3000000, 7 * 5000000, 25 * 100000000);
+        let (v2, v1, v3) = (16 * 30000, 7 * 50000, 25 * 1000000);
         assert_eq!(
             state.payment_token_pool().get(&pr(0)).unwrap(),
             &(v1 - trading_fee(v1))
@@ -1308,7 +1311,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        list_test_token(state, token, 2);
 
         // buy order for 7 $TAGGR / 0.1 ICP each
         state
@@ -1368,7 +1371,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        list_test_token(state, token, 2);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();
@@ -1387,7 +1390,7 @@ mod tests {
         let buyer = pr(5);
 
         state
-            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 100000000)
+            .add_liquidity(buyer, PAYMENT_TOKEN_ID, 12 * 1000000)
             .unwrap();
         assert_eq!(
             trade(
@@ -1414,7 +1417,7 @@ mod tests {
         assert_eq!(state.pools.get(&token).unwrap().get(&buyer).unwrap(), &23);
 
         // two sellers got ICP
-        let (v2, v1) = (16 * 3000000, 7 * 5000000);
+        let (v2, v1) = (16 * 30000, 7 * 50000);
         assert_eq!(
             state.payment_token_pool().get(&pr(0)).unwrap(),
             &(v1 - trading_fee(v1))
@@ -1435,7 +1438,7 @@ mod tests {
 
         let token = pr(100);
 
-        state.add_token(token, "TAGGR".into(), 25, 2, None);
+        list_test_token(state, token, 2);
 
         // sell order for 7 $TAGGR / 0.05 ICP each
         state.add_liquidity(pr(0), token, 7).unwrap();

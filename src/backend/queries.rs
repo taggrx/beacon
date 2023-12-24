@@ -23,7 +23,7 @@ fn prices() {
                         state
                             .order_archive
                             .get(token_id)
-                            .map(|archive| archive.front().map(|order| order.price))
+                            .map(|archive| archive.front().map(|order| order.price()))
                             .unwrap_or_default(),
                     )
                 })
@@ -82,10 +82,7 @@ fn data() {
             .filter(|order| order.executed + DAY >= now);
 
         BackenData {
-            volume_day: day_orders
-                .clone()
-                .map(|order| order.amount * order.price)
-                .sum(),
+            volume_day: day_orders.clone().map(|order| order.volume()).sum(),
             trades_day: day_orders.count() as u64,
             icp_locked: state
                 .funds_under_management()
