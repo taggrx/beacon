@@ -62,7 +62,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     </code>
                 )}
             </div>
-            <Chart orders={executedOrders} />
+            <Chart originalOrders={executedOrders} />
             {window.principalId && orderCreation && (
                 <OrderMask
                     tokenId={tokenId}
@@ -150,10 +150,11 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     );
 };
 
-const Chart = ({ orders }: { orders: Order[] }) => {
-    if (orders.length < 5) return null;
-
+const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
+    if (originalOrders.length < 5) return null;
+    const orders = [...originalOrders];
     orders.reverse();
+
     const chartRef = React.useRef(null);
 
     React.useEffect(() => {
