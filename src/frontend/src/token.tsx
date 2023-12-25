@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { PAYMENT_TOKEN_ID, orderId, token } from "./common";
+import { PAYMENT_TOKEN_ID, orderId, token, bigScreen } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
 import { OrderBook } from "./order_book";
@@ -105,7 +105,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 <>
                     <h2>EXECUTED ORDERS</h2>
                     <table
-                        className="x_small_text bottom_spaced"
+                        className={`${
+                            bigScreen() ? "small_text" : "x_small_text"
+                        } bottom_spaced`}
                         style={{ width: "100%" }}
                     >
                         <tbody>
