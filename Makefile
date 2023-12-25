@@ -1,16 +1,16 @@
 start:
 	dfx start --background -qqqq
 
-deploy:
+mainnet_deploy:
 	make build
 	dfx --identity prod deploy --network ic
 
-deploy_local:
-	dfx deploy
+local_deploy:
+	FEATURES=dev dfx deploy
 
-reinstall:
+local_reinstall:
 	make fe
-	dfx deploy --mode=reinstall beacon -y
+	FEATURES=dev dfx deploy --mode=reinstall beacon -y
 
 build:
 	NODE_ENV=production make fe

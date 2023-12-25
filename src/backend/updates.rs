@@ -18,32 +18,12 @@ fn init() {
 
 #[pre_upgrade]
 fn pre_upgrade() {
-    let buffer: Vec<u8> =
-        read(|state| serde_cbor::to_vec(state).expect("couldn't serialize the environment"));
-    let len = buffer.len() + 4;
-    if len > (stable::stable_size() << 16) as usize
-        && stable::stable_grow((len >> 16) as u32 + 1).is_err()
-    {
-        panic!("couldn't grow memory");
-    }
-    stable::stable_write(0, (buffer.len() as u32).to_be_bytes().as_ref());
-    stable::stable_write(4, &buffer);
+    mutate(memory::heap_to_stable)
 }
 
 #[post_upgrade]
 fn post_upgrade() {
-    let bytes = stable::stable_bytes();
-    let mut len_bytes: [u8; 4] = Default::default();
-    len_bytes.copy_from_slice(&bytes[..4]);
-    let len = u32::from_be_bytes(len_bytes) as usize;
-
-    STATE.with(|cell| {
-        cell.replace(
-            serde_cbor::from_slice(&bytes[4..4 + len]).expect("couldn't deserialize state"),
-        )
-    });
-
-    kickstart();
+    stable_to_heap_core();
 }
 
 #[update]
