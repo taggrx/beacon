@@ -516,7 +516,6 @@ impl State {
 
             filled += order.amount;
             order.executed = time;
-            order.owner = Principal::anonymous();
             archive.push_front(order);
 
             if amount == 0 {

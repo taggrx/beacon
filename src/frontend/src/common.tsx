@@ -26,7 +26,7 @@ export const token = (
     if (!showDecimals) return a.toLocaleString();
     let b = `${n % base}`;
     while (b.length < decimals) b = "0" + b;
-    return parseFloat(`${a}.${b}`);
+    return parseFloat(`${a}.${b}`).toLocaleString();
 };
 
 export const depositFromWallet = async (
@@ -163,4 +163,36 @@ export const CopyToClipboard = ({
             )}
         </span>
     );
+};
+
+export const timeAgo = (
+    originalTimestamp: BigInt | number,
+    absolute?: boolean,
+    format: "short" | "long" = "short",
+) => {
+    const timestamp = Number(originalTimestamp) / 1000000;
+    const diff = Number(new Date()) - timestamp;
+    const minute = 60 * 1000;
+    const hour = minute * 60;
+    const day = hour * 24;
+    switch (true) {
+        case !absolute && diff < minute:
+            const seconds = Math.round(diff / 1000);
+            return `${seconds}s ago`;
+        case !absolute && diff < hour:
+            return Math.round(diff / minute) + "m ago";
+        case !absolute && diff < day:
+            return Math.round(diff / hour) + "h ago";
+        case diff < 90 * day:
+            return `${new Intl.DateTimeFormat("default", {
+                month: format,
+                day: "numeric",
+            }).format(timestamp)}`;
+        default:
+            return `${new Intl.DateTimeFormat("default", {
+                year: "2-digit",
+                month: format,
+                day: "numeric",
+            }).format(timestamp)}`;
+    }
 };

@@ -94,13 +94,25 @@ export const OrderBook = ({
                     paddingRight: orderType == OrderType.Buy ? "0.4em" : "0",
                 }}
             >
-                <h3
+                <br />
+                <div
                     style={{
                         color: orderType == OrderType.Buy ? "green" : "red",
+                        textAlign:
+                            orderType == OrderType.Buy ? "right" : "left",
                     }}
                 >
-                    {orderType == OrderType.Buy ? "BUYERS" : "SELLERS"}
-                </h3>
+                    <h3>{orderType == OrderType.Buy ? "BUYERS" : "SELLERS"}</h3>
+                    <h4>
+                        {token(
+                            orders.reduce(
+                                (acc, order) => acc + order.amount,
+                                BigInt(0),
+                            ),
+                            tokenData.decimals,
+                        )}
+                    </h4>
+                </div>
                 {orders.map((order, i) => (
                     <div
                         key={i}
@@ -111,7 +123,7 @@ export const OrderBook = ({
                                 orderType == OrderType.Buy
                                     ? "flex-end"
                                     : "flex-start",
-                            fontSize: "xx-small",
+                            fontSize: "small",
                             color: orderType == OrderType.Buy ? "green" : "red",
                             boxSizing: "border-box",
                         }}
@@ -134,10 +146,14 @@ export const OrderBook = ({
                                     (Number(order.amount) / maxOrderSize) * 100
                                 }%`,
                                 color: "white",
-                                fontSize: "xx-small",
+                                fontSize: "small",
                                 paddingLeft: "0.5em",
                                 paddingRight: "0.5em",
                                 boxSizing: "border-box",
+                                direction:
+                                    orderType == OrderType.Buy
+                                        ? "rtl"
+                                        : undefined,
                                 background:
                                     orderType == OrderType.Buy
                                         ? "#008800"
@@ -148,10 +164,6 @@ export const OrderBook = ({
                                 order.amount,
                                 window.tokenData[tokenId].decimals,
                             )}
-                            {(Number(order.amount) / maxOrderSize) * 100 >
-                            20 ? (
-                                <> {window.tokenData[tokenId].symbol}</>
-                            ) : null}
                         </div>
                     </div>
                 ))}

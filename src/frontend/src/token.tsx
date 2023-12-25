@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { PAYMENT_TOKEN_ID, orderId, token, bigScreen } from "./common";
+import { PAYMENT_TOKEN_ID, orderId, token, timeAgo } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
 import { OrderBook } from "./order_book";
@@ -105,18 +105,14 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 <>
                     <h2>EXECUTED ORDERS</h2>
                     <table
-                        className={`${
-                            bigScreen() ? "small_text" : "x_small_text"
-                        } bottom_spaced`}
+                        className={"small_text bottom_spaced"}
                         style={{ width: "100%" }}
                     >
                         <tbody>
                             {executedOrders.map((order) => (
                                 <tr key={orderId(order)}>
                                     <td>
-                                        {new Date(
-                                            Number(order.executed) / 1000000,
-                                        ).toLocaleString()}
+                                        <Timestamp value={order.executed} />
                                     </td>
                                     <td style={{ textAlign: "right" }}>
                                         {token(
@@ -176,7 +172,7 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
             (value: number) => ((value - yMin) / scale) * 100,
         );
 
-        const skipLablesNum = Math.floor(data.length / 8);
+        const skipLablesNum = Math.floor(data.length / 6);
 
         yMax = Math.max(...data);
 
@@ -197,7 +193,7 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
             const x = i * xScale + margin;
             const y = canvas.height - margin - data[i] * yScale;
             ctx.lineTo(x, y);
-            if (i % skipLablesNum == 0)
+            if (i == 1 || i == data.length - 1 || i % skipLablesNum == 0)
                 ctx.fillText(
                     token(
                         orders[i].price,
@@ -225,5 +221,15 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
                 ref={chartRef}
             ></canvas>
         </div>
+    );
+};
+
+const Timestamp = ({ value }: { value: number }) => {
+    const [collapsed, setCollapsed] = React.useState(true);
+    if (!collapsed) return new Date(Number(value) / 1000000).toLocaleString();
+    return (
+        <span className="clickable" onClick={() => setCollapsed(false)}>
+            {timeAgo(value)}
+        </span>
     );
 };
