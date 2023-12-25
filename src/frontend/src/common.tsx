@@ -72,8 +72,8 @@ export const tokenFee = (tokenId: string) =>
 
 export const bigScreen = () => window.innerWidth >= 1024;
 
-export const humanReadablePrice = (price: bigint, tokenId: string) =>
-    BigInt(Number(price) * Math.pow(10, window.tokenData[tokenId].decimals));
+export const humanReadablePrice = (order: Order) =>
+    BigInt(Number(order.price) / Math.pow(10, order.decimals));
 
 export const orderId = (order: Order) =>
     order.owner.toString() +

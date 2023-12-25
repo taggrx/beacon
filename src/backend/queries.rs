@@ -17,15 +17,11 @@ fn prices() {
             state
                 .tokens()
                 .keys()
-                .map(|token_id| {
-                    (
-                        token_id,
-                        state
-                            .order_archive
-                            .get(token_id)
-                            .map(|archive| archive.front().map(|order| order.price()))
-                            .unwrap_or_default(),
-                    )
+                .filter_map(|token_id| {
+                    state
+                        .order_archive
+                        .get(token_id)
+                        .and_then(|archive| archive.front().map(|order| (token_id, order)))
                 })
                 .collect::<BTreeMap<_, _>>(),
         )

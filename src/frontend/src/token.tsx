@@ -55,20 +55,14 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 {executedOrders.length > 0 && (
                     <code>
                         {token(
-                            humanReadablePrice(
-                                executedOrders[0].price,
-                                tokenId,
-                            ),
+                            humanReadablePrice(executedOrders[0]),
                             paymentTokenDataData.decimals,
                         )}{" "}
                         {paymentTokenDataData.symbol}
                     </code>
                 )}
             </div>
-            <Chart
-                tokenId={tokenId}
-                prices={executedOrders.map((order) => Number(order.price))}
-            />
+            <Chart orders={executedOrders} />
             {window.principalId && orderCreation && (
                 <OrderMask
                     tokenId={tokenId}
@@ -133,10 +127,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                     </td>
                                     <td style={{ textAlign: "right" }}>
                                         {token(
-                                            humanReadablePrice(
-                                                order.price,
-                                                tokenId,
-                                            ),
+                                            humanReadablePrice(order),
                                             paymentTokenDataData.decimals,
                                         )}
                                     </td>
@@ -159,10 +150,10 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     );
 };
 
-const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
-    if (prices.length < 5) return null;
+const Chart = ({ orders }: { orders: Order[] }) => {
+    if (orders.length < 5) return null;
 
-    prices.reverse();
+    orders.reverse();
     const chartRef = React.useRef(null);
 
     React.useEffect(() => {
@@ -172,6 +163,7 @@ const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        const prices = orders.map((order) => Number(order.price));
         let yMax = Math.max(...prices);
         let yMin = Math.min(...prices);
         const scale = Math.max(...prices) - Math.min(...prices);
@@ -205,10 +197,7 @@ const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
             if (i % skipLablesNum == 0)
                 ctx.fillText(
                     token(
-                        humanReadablePrice(
-                            BigInt(Math.floor(prices[i])),
-                            tokenId,
-                        ),
+                        humanReadablePrice(orders[i]),
                         window.tokenData[PAYMENT_TOKEN_ID].decimals,
                     ).toString(),
                     x - 15,
@@ -216,7 +205,7 @@ const Chart = ({ prices, tokenId }: { prices: number[]; tokenId: string }) => {
                 );
         }
         ctx.stroke();
-    }, [prices]);
+    }, [orders]);
 
     return (
         <div

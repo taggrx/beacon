@@ -1,16 +1,23 @@
 import { Principal } from "@dfinity/principal";
-import { ConnectButton, PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
+import {
+    ConnectButton,
+    PAYMENT_TOKEN_ID,
+    bigScreen,
+    token,
+    humanReadablePrice,
+} from "./common";
 import * as React from "react";
 import { Wallet } from "./wallet";
+import { Order } from "./types";
 
 export const Landing = ({}) => {
-    const [prices, setPrices] = React.useState<{ [name: string]: bigint }>({});
+    const [orders, setOrders] = React.useState<{ [name: string]: Order }>({});
 
     const loadData = async () => {
-        const prices = await window.api.query<{ [name: string]: bigint }>(
+        const orders = await window.api.query<{ [name: string]: Order }>(
             "prices",
         );
-        if (prices) setPrices(prices);
+        if (orders) setOrders(orders);
     };
 
     React.useEffect(() => {
@@ -94,7 +101,12 @@ export const Landing = ({}) => {
                             <a href={`#/${id}`}>{symbol}</a>
                             <div className="max_width_col"></div>
                             <code>
-                                {token(prices[id], paymentToken.decimals)}{" "}
+                                {orders[id]
+                                    ? token(
+                                          humanReadablePrice(orders[id]),
+                                          paymentToken.decimals,
+                                      )
+                                    : 0}{" "}
                                 {paymentToken.symbol}
                             </code>
                         </div>

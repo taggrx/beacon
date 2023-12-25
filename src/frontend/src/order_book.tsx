@@ -68,7 +68,7 @@ export const OrderBook = ({
                 </td>
                 <td>
                     {token(
-                        humanReadablePrice(order.price, tokenId),
+                        humanReadablePrice(order),
                         paymentTokenDataData.decimals,
                     )}{" "}
                     {paymentTokenDataData.symbol}
@@ -132,7 +132,7 @@ export const OrderBook = ({
                             }}
                         >
                             {token(
-                                humanReadablePrice(order.price, tokenId),
+                                humanReadablePrice(order),
                                 window.tokenData[PAYMENT_TOKEN_ID].decimals,
                             )}{" "}
                             {window.tokenData[PAYMENT_TOKEN_ID].symbol}
