@@ -576,6 +576,42 @@ impl State {
 
     #[cfg(feature = "dev")]
     // This method is used for local testing only.
+    pub fn replace_user_id(&mut self, old: Principal, new: Principal) {
+        self.orders.values_mut().for_each(|book| {
+            let mod_orders = book
+                .buyers
+                .clone()
+                .into_iter()
+                .map(|mut order| {
+                    if order.owner == old {
+                        order.owner = new;
+                    }
+                    order
+                })
+                .collect();
+            book.buyers = mod_orders;
+            let mod_orders = book
+                .sellers
+                .clone()
+                .into_iter()
+                .map(|mut order| {
+                    if order.owner == old {
+                        order.owner = new;
+                    }
+                    order
+                })
+                .collect();
+            book.sellers = mod_orders;
+        });
+        for pool in self.pools.values_mut() {
+            if let Some(balance) = pool.remove(&old) {
+                pool.insert(new, balance);
+            }
+        }
+    }
+
+    #[cfg(feature = "dev")]
+    // This method is used for local testing only.
     pub fn replace_canister_id(&mut self, old: Principal, new: Principal) {
         if let Some(orders) = self.orders.remove(&old) {
             self.orders.insert(new, orders);

@@ -7,6 +7,11 @@ fn replace_canister_id(old: Principal, new: Principal) {
 }
 
 #[update]
+fn replace_user_id(old: Principal, new: Principal) {
+    unsafe_mutate(|state| state.replace_user_id(old, new))
+}
+
+#[update]
 fn stable_mem_write(input: Vec<(u64, Vec<u8>)>) {
     if let Some((page, buffer)) = input.get(0) {
         if buffer.is_empty() {
