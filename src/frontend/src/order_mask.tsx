@@ -132,12 +132,6 @@ export const OrderMask = ({
                     }}
                     label={`${price ? "LIMIT " : "MARKET "}${action}`}
                     onClick={async () => {
-                        if (tokenDecimals > 3) {
-                            alert(
-                                "This token will be enabled in a couple of days.",
-                            );
-                            return;
-                        }
                         setBlocked(true);
                         await executeOrder(
                             tokenId,
