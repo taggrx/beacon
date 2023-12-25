@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { PAYMENT_TOKEN_ID, humanReadablePrice, orderId, token } from "./common";
+import { PAYMENT_TOKEN_ID, orderId, token } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
 import { OrderBook } from "./order_book";
@@ -55,7 +55,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                 {executedOrders.length > 0 && (
                     <code>
                         {token(
-                            humanReadablePrice(executedOrders[0]),
+                            executedOrders[0].price,
                             paymentTokenDataData.decimals,
                         )}{" "}
                         {paymentTokenDataData.symbol}
@@ -127,7 +127,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                     </td>
                                     <td style={{ textAlign: "right" }}>
                                         {token(
-                                            humanReadablePrice(order),
+                                            order.price,
                                             paymentTokenDataData.decimals,
                                         )}
                                     </td>
@@ -197,7 +197,7 @@ const Chart = ({ orders }: { orders: Order[] }) => {
             if (i % skipLablesNum == 0)
                 ctx.fillText(
                     token(
-                        humanReadablePrice(orders[i]),
+                        orders[i].price,
                         window.tokenData[PAYMENT_TOKEN_ID].decimals,
                     ).toString(),
                     x - 15,

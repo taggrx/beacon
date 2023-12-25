@@ -1,13 +1,7 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import {
-    Button,
-    PAYMENT_TOKEN_ID,
-    humanReadablePrice,
-    orderId,
-    token,
-} from "./common";
+import { Button, PAYMENT_TOKEN_ID, orderId, token } from "./common";
 
 export const OrderBook = ({
     tokenId,
@@ -67,10 +61,7 @@ export const OrderBook = ({
                     {token(order.amount, tokenData.decimals)} {tokenData.symbol}
                 </td>
                 <td>
-                    {token(
-                        humanReadablePrice(order),
-                        paymentTokenDataData.decimals,
-                    )}{" "}
+                    {token(order.price, paymentTokenDataData.decimals)}{" "}
                     {paymentTokenDataData.symbol}
                 </td>
                 <td style={{ textAlign: "right" }}>
@@ -132,7 +123,7 @@ export const OrderBook = ({
                             }}
                         >
                             {token(
-                                humanReadablePrice(order),
+                                order.price,
                                 window.tokenData[PAYMENT_TOKEN_ID].decimals,
                             )}{" "}
                             {window.tokenData[PAYMENT_TOKEN_ID].symbol}

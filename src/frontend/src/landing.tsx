@@ -1,11 +1,5 @@
 import { Principal } from "@dfinity/principal";
-import {
-    ConnectButton,
-    PAYMENT_TOKEN_ID,
-    bigScreen,
-    token,
-    humanReadablePrice,
-} from "./common";
+import { ConnectButton, PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
 import * as React from "react";
 import { Wallet } from "./wallet";
 import { Order } from "./types";
@@ -103,7 +97,7 @@ export const Landing = ({}) => {
                             <code>
                                 {orders[id]
                                     ? token(
-                                          humanReadablePrice(orders[id]),
+                                          orders[id].price,
                                           paymentToken.decimals,
                                       )
                                     : 0}{" "}
