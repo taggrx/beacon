@@ -561,6 +561,19 @@ impl State {
             })
             .collect()
     }
+
+    #[cfg(feature = "dev")]
+    // This method is used for local testing only.
+    pub fn replace_canister_id(&mut self, old: Principal, new: Principal) {
+        let orders = self.orders.remove(&old).unwrap();
+        self.orders.insert(new, orders);
+        let pool = self.pools.remove(&old).unwrap();
+        self.pools.insert(new, pool);
+        let metadata = self.tokens.remove(&old).unwrap();
+        self.tokens.insert(new, metadata);
+        let archive = self.order_archive.remove(&old).unwrap();
+        self.order_archive.insert(new, archive);
+    }
 }
 
 fn adjust_pools(

@@ -2,6 +2,11 @@ use super::*;
 use ic_cdk::api;
 
 #[update]
+fn replace_canister_id(old: Principal, new: Principal) {
+    unsafe_mutate(|state| state.replace_canister_id(old, new))
+}
+
+#[update]
 fn stable_mem_write(input: Vec<(u64, Vec<u8>)>) {
     if let Some((page, buffer)) = input.get(0) {
         if buffer.is_empty() {

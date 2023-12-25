@@ -5,10 +5,7 @@ use std::time::Duration;
 use std::{cell::RefCell, collections::VecDeque};
 
 use candid::Principal;
-use ic_cdk::{
-    api::{call::reply_raw, stable},
-    caller, spawn,
-};
+use ic_cdk::{api::call::reply_raw, caller, spawn};
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{Tokens as ICP, DEFAULT_FEE};
@@ -38,6 +35,14 @@ where
     F: FnOnce(&State) -> R,
 {
     STATE.with(|cell| f(&cell.borrow()))
+}
+
+#[cfg(feature = "dev")]
+fn unsafe_mutate<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut State) -> R,
+{
+    STATE.with(|cell| f(&mut cell.borrow_mut()))
 }
 
 fn mutate<F, R>(f: F) -> R
