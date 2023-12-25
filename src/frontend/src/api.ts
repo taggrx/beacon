@@ -176,6 +176,7 @@ export const ApiGenerator = (
                 "icrc1_balance_of",
                 arg,
             );
+            if (!response) return BigInt(0);
             return IDL.decode([IDL.Nat], response)[0] as unknown as bigint;
         },
 
