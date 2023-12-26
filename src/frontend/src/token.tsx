@@ -109,7 +109,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                         style={{ width: "100%" }}
                     >
                         <tbody>
-                            {executedOrders.map((order) => (
+                            {executedOrders.slice(0, 30).map((order) => (
                                 <tr key={orderId(order)}>
                                     <td>
                                         <Timestamp value={order.executed} />

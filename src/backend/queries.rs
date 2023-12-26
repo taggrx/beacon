@@ -39,7 +39,7 @@ fn executed_orders(token: TokenId) -> VecDeque<Order> {
         state
             .order_archive
             .get(&token)
-            .map(|list| list.iter().take(75).cloned().collect())
+            .map(|list| list.iter().take(100).cloned().collect())
             .unwrap_or_default()
     })
 }
