@@ -24,6 +24,7 @@ fn pre_upgrade() {
 #[post_upgrade]
 fn post_upgrade() {
     stable_to_heap_core();
+    kickstart();
 }
 
 #[update]

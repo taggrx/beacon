@@ -94,9 +94,11 @@ fn kickstart() {
     };
     set_timer(Duration::from_millis(1), fetch_rate);
     set_timer_interval(Duration::from_secs(15 * 60), fetch_rate);
+    set_timer_interval(Duration::from_secs(60 * 60), || {
+        mutate(|state| memory::heap_to_stable(state));
+    });
 }
 
 fn stable_to_heap_core() {
     STATE.with(|cell| cell.replace(memory::stable_to_heap()));
-    kickstart();
 }
