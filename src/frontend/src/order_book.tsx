@@ -60,6 +60,7 @@ export const OrderBook = ({
                 <td>
                     {token(order.amount, tokenData.decimals)} {tokenData.symbol}
                 </td>
+                <td style={{ textAlign: "center" }}>@</td>
                 <td>
                     {token(order.price, paymentTokenDataData.decimals)}{" "}
                     {paymentTokenDataData.symbol}
