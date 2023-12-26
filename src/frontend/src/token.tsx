@@ -114,22 +114,30 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                     <td>
                                         <Timestamp value={order.executed} />
                                     </td>
-                                    <td style={{ textAlign: "right" }}>
-                                        {token(
-                                            order.amount,
-                                            tokenData.decimals,
-                                        )}
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>
+                                    <td>
+                                        <code>
+                                            {token(
+                                                order.amount,
+                                                tokenData.decimals,
+                                            )}
+                                        </code>{" "}
                                         {tokenData.symbol}
                                     </td>
-                                    <td style={{ textAlign: "right" }}>
-                                        {token(
-                                            order.price,
-                                            paymentTokenDataData.decimals,
-                                        )}
+                                    <td
+                                        style={{
+                                            opacity: "0.3",
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        @
                                     </td>
                                     <td style={{ textAlign: "right" }}>
+                                        <code>
+                                            {token(
+                                                order.price,
+                                                paymentTokenDataData.decimals,
+                                            )}
+                                        </code>{" "}
                                         {paymentTokenDataData.symbol}
                                     </td>
                                 </tr>

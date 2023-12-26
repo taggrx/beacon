@@ -58,11 +58,21 @@ export const OrderBook = ({
                     {type.toString().toUpperCase()}
                 </td>
                 <td>
-                    {token(order.amount, tokenData.decimals)} {tokenData.symbol}
+                    <code>{token(order.amount, tokenData.decimals)}</code>{" "}
+                    {tokenData.symbol}
                 </td>
-                <td style={{ textAlign: "center" }}>@</td>
+                <td
+                    style={{
+                        opacity: "0.3",
+                        textAlign: "center",
+                    }}
+                >
+                    @
+                </td>
                 <td>
-                    {token(order.price, paymentTokenDataData.decimals)}{" "}
+                    <code>
+                        {token(order.price, paymentTokenDataData.decimals)}
+                    </code>{" "}
                     {paymentTokenDataData.symbol}
                 </td>
                 <td style={{ textAlign: "right" }}>
