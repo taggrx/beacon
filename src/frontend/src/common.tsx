@@ -26,7 +26,7 @@ export const token = (
     if (!showDecimals) return a.toLocaleString();
     let b = `${n % base}`;
     while (b.length < decimals) b = "0" + b;
-    return parseFloat(`${a}.${b}`).toLocaleString();
+    return parseFloat(`${a}.${b}`);
 };
 
 export const depositFromWallet = async (

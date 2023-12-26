@@ -110,7 +110,7 @@ export const OrderBook = ({
                                 BigInt(0),
                             ),
                             tokenData.decimals,
-                        )}
+                        ).toLocaleString()}
                     </h4>
                 </div>
                 {orders.map((order, i) => (
