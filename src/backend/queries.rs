@@ -35,20 +35,11 @@ fn orders(token: TokenId, order_type: OrderType) -> Vec<Order> {
 
 #[query]
 fn executed_orders(token: TokenId) -> VecDeque<Order> {
-    let now = ic_cdk::api::time();
     read(|state| {
         state
             .order_archive
             .get(&token)
-            .map(|list| {
-                list.iter()
-                    // take all orders from the last 3 days
-                    .filter(|order| order.executed + 3 * DAY > now)
-                    // but not more than 100
-                    .take(100)
-                    .cloned()
-                    .collect()
-            })
+            .map(|list| list.iter().take(75).cloned().collect())
             .unwrap_or_default()
     })
 }

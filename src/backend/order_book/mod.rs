@@ -45,10 +45,6 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn price(&self) -> E8sPerToken {
-        self.price
-    }
-
     pub fn volume(&self) -> Tokens {
         let token_base = 10_u128.pow(self.decimals);
         (self.amount * self.price) / token_base
