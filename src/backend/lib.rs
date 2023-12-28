@@ -1,8 +1,8 @@
 use icrc1::Account;
 use serde::Serialize;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::time::Duration;
-use std::{cell::RefCell, collections::VecDeque};
 
 use candid::Principal;
 use ic_cdk::{api::call::reply_raw, caller, spawn};
@@ -102,3 +102,11 @@ fn kickstart() {
 fn stable_to_heap_core() {
     STATE.with(|cell| cell.replace(memory::stable_to_heap()));
 }
+
+fn parse<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> T {
+    serde_json::from_slice(bytes).expect("couldn't parse the input")
+}
+
+use crate::assets::HttpRequest;
+use crate::assets::HttpResponse;
+export_candid!();

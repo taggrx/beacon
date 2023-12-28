@@ -34,8 +34,6 @@ export type Backend = {
 
     orders: (tokenId: Principal, orderType: OrderType) => Promise<JsonValue>;
 
-    executed_orders: (tokenId: Principal) => Promise<JsonValue>;
-
     list_token: (tokenId: Principal) => Promise<JsonValue>;
 
     deposit_liquidity: (tokenId: Principal) => Promise<JsonValue>;
@@ -258,28 +256,6 @@ export const ApiGenerator = (
                     Ok: IDL.Null,
                     Err: IDL.Text,
                 }),
-            );
-        },
-
-        executed_orders: async (tokenId: Principal): Promise<JsonValue> => {
-            const arg = IDL.encode([IDL.Principal], [tokenId]);
-            const response = await query_raw(
-                canisterId,
-                "executed_orders",
-                arg,
-            );
-            return decode(
-                response,
-                IDL.Vec(
-                    IDL.Record({
-                        owner: IDL.Principal,
-                        amount: IDL.Nat,
-                        price: IDL.Nat,
-                        decimals: IDL.Nat32,
-                        executed: IDL.Nat64,
-                        timestamp: IDL.Nat64,
-                    }),
-                ),
             );
         },
 

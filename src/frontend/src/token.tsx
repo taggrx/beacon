@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
-import { Principal } from "@dfinity/principal";
 import { PAYMENT_TOKEN_ID, orderId, token, timeAgo } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
@@ -13,8 +12,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         null,
     );
     const loadData = async (tokenId: string) => {
-        const executedOrders = await window.api.executed_orders(
-            Principal.fromText(tokenId),
+        const executedOrders = await window.api.query(
+            "executed_orders",
+            tokenId,
         );
         setExecutedOrders(executedOrders as unknown as any);
     };

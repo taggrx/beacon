@@ -1,4 +1,11 @@
+use ic_cdk::api::call::arg_data_raw;
+
 use super::*;
+
+#[query]
+fn orders(token: TokenId, order_type: OrderType) -> Vec<Order> {
+    read(|state| state.orders(token, order_type).cloned().collect())
+}
 
 #[export_name = "canister_query tokens"]
 fn tokens() {
@@ -28,19 +35,17 @@ fn prices() {
     });
 }
 
-#[query]
-fn orders(token: TokenId, order_type: OrderType) -> Vec<Order> {
-    read(|state| state.orders(token, order_type).cloned().collect())
-}
-
-#[query]
-fn executed_orders(token: TokenId) -> VecDeque<Order> {
+#[export_name = "canister_query executed_orders"]
+fn executed_orders() {
     read(|state| {
-        state
-            .order_archive
-            .get(&token)
-            .map(|list| list.iter().take(75).cloned().collect())
-            .unwrap_or_default()
+        let token: String = parse(&arg_data_raw());
+        reply(
+            state
+                .order_archive
+                .get(&Principal::from_text(token).expect("couldn't parse principal"))
+                .map(|list| list.iter().take(75).cloned().collect::<Vec<_>>())
+                .unwrap_or_default(),
+        )
     })
 }
 

@@ -1,1 +1,29 @@
-service : { }
+type HttpRequest = record { url : text };
+type HttpResponse = record {
+  body : vec nat8;
+  headers : vec record { text; text };
+  status_code : nat16;
+};
+type Order = record {
+  decimals : nat32;
+  owner : principal;
+  order_type : OrderType;
+  timestamp : nat64;
+  executed : nat64;
+  price : nat;
+  amount : nat;
+};
+type OrderType = variant { Buy; Sell };
+type Result = variant { Ok; Err : text };
+type Result_1 = variant { Ok : nat; Err : text };
+service : () -> {
+  close_order : (principal, OrderType, nat, nat, nat64) -> ();
+  deposit_liquidity : (principal) -> (Result);
+  http_request : (HttpRequest) -> (HttpResponse) query;
+  list_token : (principal) -> (Result);
+  orders : (principal, OrderType) -> (vec Order) query;
+  set_revenue_account : (principal) -> ();
+  stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
+  trade : (principal, nat, nat, OrderType) -> (vec record { nat; bool });
+  withdraw : (principal) -> (Result_1);
+}

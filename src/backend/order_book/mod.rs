@@ -40,8 +40,8 @@ pub struct Order {
     amount: Tokens,
     price: E8sPerToken,
     timestamp: Timestamp,
+    executed: Timestamp,
     decimals: u32,
-    pub executed: Timestamp,
 }
 
 impl Order {
