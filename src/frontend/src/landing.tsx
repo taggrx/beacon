@@ -18,7 +18,16 @@ export const Landing = ({}) => {
         loadData();
     }, []);
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
-    const { icp_locked, trades_day, volume_day, fee } = window.data;
+    const {
+        icp_locked,
+        trades_day,
+        volume_day,
+        fee,
+        cycle_balance,
+        heap_size,
+        tokens_listed,
+        active_traders,
+    } = window.data;
 
     return (
         <div>
@@ -62,6 +71,29 @@ export const Landing = ({}) => {
                 <div className="dbcell">
                     <span>FEES</span>
                     <code>{Number(fee) / 100}%</code>
+                </div>
+                <div className="dbcell">
+                    <span>TOKENS LISTED</span>
+                    <code>{tokens_listed}</code>
+                </div>
+                <div className="dbcell">
+                    <span>ACTIVE TRADERS</span>
+                    <code>{active_traders}</code>
+                </div>
+                <div className="dbcell">
+                    <span>CYCLE BALANCE</span>
+                    <code>
+                        {(Number(cycle_balance) / 10 ** 12).toLocaleString()} T
+                    </code>
+                </div>
+                <div className="dbcell">
+                    <span>HEAP SIZE</span>
+                    <code>
+                        {(heap_size / 1024 / 1024).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                        })}{" "}
+                        MB
+                    </code>
                 </div>
             </div>
             <br />

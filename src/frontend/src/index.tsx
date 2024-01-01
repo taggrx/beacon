@@ -20,6 +20,10 @@ type Data = {
     volume_day: bigint;
     trades_day: number;
     icp_locked: bigint;
+    cycle_balance: number;
+    heap_size: number;
+    tokens_listed: number;
+    active_traders: number;
 };
 
 declare global {

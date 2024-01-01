@@ -118,6 +118,15 @@ pub struct State {
 }
 
 impl State {
+    pub fn traders(&self) -> usize {
+        self.orders
+            .values()
+            .flat_map(|book| book.sellers.iter().chain(book.buyers.iter()))
+            .map(|order| order.owner)
+            .collect::<BTreeSet<_>>()
+            .len()
+    }
+
     pub fn list_token(
         &mut self,
         token: TokenId,

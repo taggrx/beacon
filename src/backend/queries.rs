@@ -1,4 +1,4 @@
-use ic_cdk::api::call::arg_data_raw;
+use ic_cdk::api::{call::arg_data_raw, canister_balance};
 
 use super::*;
 
@@ -61,6 +61,10 @@ struct BackenData {
     icp_locked: u128,
     e8s_per_xdr: u64,
     fee: u128,
+    cycle_balance: u64,
+    heap_size: u64,
+    tokens_listed: usize,
+    active_traders: usize,
 }
 
 #[export_name = "canister_query data"]
@@ -84,6 +88,10 @@ fn data() {
                 .unwrap_or_default(),
             e8s_per_xdr: state.e8s_per_xdr,
             fee: TX_FEE,
+            cycle_balance: canister_balance(),
+            heap_size: heap_address().1,
+            tokens_listed: state.tokens.len(),
+            active_traders: state.traders(),
         }
     }))
 }
