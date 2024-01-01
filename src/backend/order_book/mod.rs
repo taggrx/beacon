@@ -7,7 +7,7 @@ use candid::{CandidType, Principal};
 use ic_ledger_types::{DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
 use serde::{Deserialize, Serialize};
 
-use crate::{icrc1::Value, memory::Memory};
+use crate::icrc1::Value;
 
 pub const PAYMENT_TOKEN_ID: Principal = MAINNET_LEDGER_CANISTER_ID;
 pub type Timestamp = u64;
@@ -40,7 +40,7 @@ pub struct Order {
     amount: Tokens,
     price: E8sPerToken,
     timestamp: Timestamp,
-    executed: Timestamp,
+    pub executed: Timestamp,
     decimals: u32,
 }
 
@@ -115,8 +115,6 @@ pub struct State {
     pub revenue_account: Option<Principal>,
     pub logs: VecDeque<(u64, String)>,
     event_id: u64,
-    #[serde(default)]
-    pub memory: Memory,
 }
 
 impl State {

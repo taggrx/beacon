@@ -91,7 +91,7 @@ fn data() {
 #[query]
 fn stable_mem_read(page: u64) -> Vec<(u64, Vec<u8>)> {
     let offset = page * BACKUP_PAGE_SIZE as u64;
-    let (heap_off, heap_size) = memory::heap_address();
+    let (heap_off, heap_size) = heap_address();
     let memory_end = heap_off + heap_size;
     if offset > memory_end {
         return Default::default();

@@ -18,7 +18,7 @@ fn init() {
 
 #[pre_upgrade]
 fn pre_upgrade() {
-    mutate(memory::heap_to_stable)
+    mutate(heap_to_stable)
 }
 
 #[post_upgrade]
