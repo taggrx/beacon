@@ -5,7 +5,14 @@
             "package": "beacon",
             "type": "custom",
             "wasm": "target/wasm32-unknown-unknown/release/beacon.wasm.gz",
-            "build": "./build.sh beacon"
+            "build": "./build.sh beacon",
+            "metadata": [
+                {
+                    "name": "candid:service",
+                    "networks": ["local", "ic"],
+                    "visibility": "public"
+                }
+            ]
         }
     },
     "networks": {
