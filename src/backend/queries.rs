@@ -90,7 +90,8 @@ fn data() {
             fee: TX_FEE,
             cycle_balance: canister_balance(),
             heap_size: heap_address().1,
-            tokens_listed: state.tokens.len(),
+            // We subtract one, because the list of tokens always contains the ICP token
+            tokens_listed: state.tokens.len() - 1,
             active_traders: state.traders(),
         }
     }))
