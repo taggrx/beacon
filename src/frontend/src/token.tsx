@@ -69,7 +69,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     symbol={symbol}
                     orderType={orderCreation}
                     callback={callback}
-                    cancelCallback={() => setOrderCreation(null)}
+                    closeCallback={() => setOrderCreation(null)}
                 />
             )}
             {window.principalId && !orderCreation && (

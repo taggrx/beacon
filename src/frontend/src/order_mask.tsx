@@ -8,13 +8,13 @@ export const OrderMask = ({
     symbol,
     orderType,
     callback,
-    cancelCallback,
+    closeCallback,
 }: {
     tokenId: string;
     symbol: string;
     orderType: OrderType;
     callback: () => void;
-    cancelCallback: () => void;
+    closeCallback: () => void;
 }) => {
     const [status, setStatus] = React.useState<string | JSX.Element>("");
     const [blocked, setBlocked] = React.useState(false);
@@ -118,9 +118,9 @@ export const OrderMask = ({
             <div className="row_container">
                 <button
                     className="max_width_col right_half_spaced"
-                    onClick={cancelCallback}
+                    onClick={closeCallback}
                 >
-                    CANCEL
+                    CLOSE
                 </button>
                 <Button
                     classNameArg="max_width_col left_half_spaced"
