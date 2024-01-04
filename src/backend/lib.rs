@@ -141,6 +141,5 @@ fn heap_address() -> (u64, u64) {
     (offset, len)
 }
 
-use crate::assets::HttpRequest;
-use crate::assets::HttpResponse;
+use crate::assets::{HttpRequest, HttpResponse};
 export_candid!();
