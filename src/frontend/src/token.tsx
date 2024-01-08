@@ -171,6 +171,7 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const prices = orders.map((order) => Number(order.price));
+        const volumes = orders.map((order) => Number(order.amount));
         let yMax = Math.max(...prices);
         let yMin = Math.min(...prices);
         const scale = Math.max(...prices) - Math.min(...prices);
@@ -180,11 +181,10 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
             (value: number) => ((value - yMin) / scale) * 100,
         );
 
-        const skipLablesNum = Math.floor(data.length / 6);
-
         yMax = Math.max(...data);
 
         const margin = 50;
+        const marginY = 70;
         const xScale = (canvas.width - 2 * margin) / (data.length - 1);
         const yScale = (canvas.height - 2 * margin) / yMax;
 
@@ -192,16 +192,16 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
         ctx.lineCap = "round";
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#6ac2c9";
-        ctx.font = "18px JetBrains Mono";
+        ctx.font = "12px JetBrains Mono";
         ctx.fillStyle = "white";
 
         ctx.beginPath();
         ctx.moveTo(margin, canvas.height - margin - data[0] * yScale);
         for (let i = 1; i < data.length; i++) {
             const x = i * xScale + margin;
-            const y = canvas.height - margin - data[i] * yScale;
+            const y = canvas.height - marginY - data[i] * yScale;
             ctx.lineTo(x, y);
-            if (i == 1 || i == data.length - 1 || i % skipLablesNum == 0)
+            if (i == 1 || i == data.length - 1)
                 ctx.fillText(
                     token(
                         orders[i].price,
@@ -212,6 +212,18 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
                 );
         }
         ctx.stroke();
+
+        // Draw volumes
+        const maxVolume = Math.max(...volumes);
+        const maxBarHeight = 40;
+        for (let i = 1; i < volumes.length; i++) {
+            const x = i * xScale + margin;
+            const y = (volumes[i] / maxVolume) * maxBarHeight;
+            ctx.beginPath();
+            ctx.moveTo(x, canvas.height);
+            ctx.lineTo(x, canvas.height - y);
+            ctx.stroke();
+        }
     }, [orders]);
 
     return (
