@@ -109,20 +109,20 @@ async fn trade(
 }
 
 #[update]
-async fn withdraw(token_id: Principal) -> Result<u128, String> {
+async fn withdraw(token: Principal) -> Result<u128, String> {
     let user = caller();
-    let fee = read(|state| state.token(token_id))?.fee;
-    let existing_balance = read(|state| state.token_pool_balance(token_id, user));
+    let fee = read(|state| state.token(token))?.fee;
+    let existing_balance = read(|state| state.token_pool_balance(token, user));
     if existing_balance <= fee {
         return Err("amount smaller than the fee".into());
     }
     let balance = mutate_with_invarant_check(
-        |state| state.withdraw_liquidity(user, token_id),
-        Some((token_id, -(existing_balance as i128))),
+        |state| state.withdraw_liquidity(user, token),
+        Some((token, -(existing_balance as i128))),
     )?;
     let amount = balance - fee;
     icrc1::transfer(
-        token_id,
+        token,
         None,
         Account {
             owner: user,
@@ -134,6 +134,13 @@ async fn withdraw(token_id: Principal) -> Result<u128, String> {
     .map_err(|err| {
         let error = format!("withdraw transfer failed: {}", err);
         mutate(|state| state.log(error.clone()));
+        // if the withdraw failed, restore liquidity
+        if let Err(err) = mutate_with_invarant_check(
+            |state| state.add_liquidity(user, token, balance),
+            Some((token, balance as i128)),
+        ) {
+            mutate(|state| state.log(format!("couldn't restore liquidity: {}", err)));
+        };
         error
     })
     .map(|_| amount)
