@@ -554,11 +554,27 @@ impl State {
             }
 
             amount = if order.amount > amount {
+                let prev_reserved_liquidity = order.reserved_liquidity();
                 // partial order fill - create a new one for left overs
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
+                let new_reserved_liquidity = remaining_order.reserved_liquidity();
                 orders.insert(remaining_order);
                 order.amount = amount;
+                let freed_liquidity = prev_reserved_liquidity
+                    .saturating_sub(new_reserved_liquidity + order.reserved_liquidity());
+                if freed_liquidity > 0 {
+                    // Freeing of liquidity on an order split can only happen for sell orders,
+                    // becasue the reserved ICP liquidity is computed using integer division.
+                    assert!(trade_type.sell());
+                    if let Some(liquidity) = self
+                        .pools
+                        .get_mut(&PAYMENT_TOKEN_ID)
+                        .and_then(|pool| pool.get_mut(&order.owner))
+                    {
+                        *liquidity += freed_liquidity;
+                    }
+                }
                 0
             } else {
                 amount - order.amount
@@ -748,6 +764,8 @@ fn trading_fee(volume: E8s) -> u128 {
 mod tests {
 
     use ic_ledger_types::DEFAULT_FEE;
+
+    use crate::{mutate, read, unsafe_mutate};
 
     use super::*;
 
@@ -1544,6 +1562,36 @@ mod tests {
         assert_eq!(
             create_order(state, pr(0), token, 7, 6000000, 0, OrderType::Sell),
             Err("not enough funds available for this order size".into())
+        );
+    }
+
+    #[test]
+    fn test_partial_order_liquidity_preservation() {
+        let seller = pr(5);
+        let token = pr(100);
+        unsafe_mutate(|state| {
+            list_payment_token(state);
+
+            state.revenue_account = Some(pr(255));
+
+            list_test_token(state, token, 2);
+
+            state
+                .add_liquidity(pr(0), PAYMENT_TOKEN_ID, 6 * 9500000)
+                .unwrap();
+            assert!(create_order(state, pr(0), token, 5, 9500000, 0, OrderType::Buy).is_ok());
+
+            state
+                .add_liquidity(pr(1), PAYMENT_TOKEN_ID, 601 * 9500000)
+                .unwrap();
+            assert!(create_order(state, pr(1), token, 600, 9500000, 0, OrderType::Buy).is_ok());
+
+            state.add_liquidity(seller, token, 10).unwrap();
+        });
+        assert_eq!(read(|state| state.pools.len()), 2);
+        assert_eq!(
+            mutate(|state| trade(state, OrderType::Sell, seller, token, 5, None, 123456)),
+            Ok(5)
         );
     }
 }

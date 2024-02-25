@@ -37,7 +37,7 @@ where
     STATE.with(|cell| f(&cell.borrow()))
 }
 
-#[cfg(feature = "dev")]
+#[cfg(any(test, feature = "dev"))]
 fn unsafe_mutate<F, R>(f: F) -> R
 where
     F: FnOnce(&mut State) -> R,
