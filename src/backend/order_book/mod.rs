@@ -416,8 +416,12 @@ impl State {
                 decimals,
             },
         );
-        self.pools.insert(id, Default::default());
-        self.log(format!("token {} was listed", id));
+        if let std::collections::btree_map::Entry::Vacant(e) = self.pools.entry(id) {
+            e.insert(Default::default());
+            self.log(format!("token {} was listed", id));
+        } else {
+            self.log(format!("token {} was re-listed", id));
+        }
     }
 
     pub fn create_order(

@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { Token } from "./token";
 import { ApiGenerator, Backend } from "./api";
 import { Principal } from "@dfinity/principal";
+import { Listing } from "./listing";
 
 const parseHash = (): string[] => {
     const parts = window.location.hash.replace("#", "").split("/");
@@ -44,12 +45,14 @@ declare global {
 const root = createRoot(document.getElementById("app") as Element);
 
 const App = () => {
-    const [param] = parseHash();
+    const [param, param2] = parseHash();
 
     let content = null;
 
     if (param == "logs") {
         content = <Logs />;
+    } else if (param == "list") {
+        content = <Listing tokenId={param2} />;
     } else if (typeof param == "string") {
         content = <Token tokenId={param} />;
     }

@@ -169,7 +169,7 @@ export const Landing = ({}) => {
                                 if (!input) return;
                                 const id = Principal.fromText(input);
                                 if (!id) return;
-                                location.href = `#/${id.toString()}`;
+                                location.href = `#/list/${id.toString()}`;
                             } catch (e) {
                                 alert(e);
                             }

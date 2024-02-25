@@ -58,7 +58,7 @@ export const Listing = ({ tokenId }: { tokenId: string }) => {
                                 setStatus(`🔴 Error: ${result.Err}`);
                                 return;
                             }
-                            location.reload();
+                            location.href = `#/${tokenId}`;
                         }}
                     />
                 </>
