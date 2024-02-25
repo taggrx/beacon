@@ -16,7 +16,7 @@ pub type TokenId = Principal;
 pub type E8sPerToken = u128;
 pub type E8s = u128;
 
-pub const TX_FEE: u128 = 5; // 0.25% per trade side
+pub const TX_FEE: u128 = 1; // 0.XX% per trade side
 
 const ORDER_EXPIRATION_DAYS: u64 = 30;
 
