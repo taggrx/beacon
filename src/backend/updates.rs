@@ -59,10 +59,11 @@ async fn close_order(
 async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
     let user = caller();
     let user_account = icrc1::user_account(user);
+    let fee = read(|state| state.token(token))?.fee;
     let wallet_balance = icrc1::balance_of(token, &user_account)
         .await?
         // subtract fee becasue this funds will be moved to BEACON pool
-        .checked_sub(read(|state| state.token(token))?.fee)
+        .checked_sub(fee)
         .unwrap_or_default();
 
     // if the balance is above 0, move everything from the wallet to BEACON
@@ -72,6 +73,7 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
             user_account.subaccount,
             icrc1::main_account(),
             wallet_balance,
+            fee,
         )
         .await
         .map_err(|err| {
@@ -129,6 +131,7 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
             subaccount: None,
         },
         amount,
+        fee,
     )
     .await
     .map_err(|err| {

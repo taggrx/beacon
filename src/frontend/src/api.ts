@@ -60,6 +60,7 @@ export type Backend = {
         recipient: Principal,
         subaccount: Uint8Array,
         amount: bigint,
+        fee: bigint,
     ) => Promise<JsonValue>;
 };
 
@@ -292,6 +293,7 @@ export const ApiGenerator = (
             recipient: Principal,
             subaccount: Uint8Array,
             amount: bigint,
+            fee: bigint,
         ) => {
             let resized = new Uint8Array(32);
             resized.set(Uint8Array.from(subaccount).subarray(0, 32));
@@ -314,6 +316,7 @@ export const ApiGenerator = (
                     {
                         to,
                         amount,
+                        fee: [fee],
                     },
                 ],
             );

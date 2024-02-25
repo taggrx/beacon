@@ -111,13 +111,14 @@ pub async fn transfer(
     from_subaccount: Option<Subaccount>,
     to: Account,
     amount: Tokens,
+    fee: Tokens,
 ) -> Result<u128, String> {
     let args = TransferArgs {
         from_subaccount,
         to,
         amount,
         memo: None,
-        fee: None,
+        fee: Some(fee),
         created_at_time: None,
     };
     let (result,): (Result<u128, TransferError>,) = ic_cdk::call(token, "icrc1_transfer", (args,))

@@ -209,7 +209,8 @@ const withdrawToPrincipal = async (
                 Principal.fromText(id),
                 Principal.fromText(recipient),
                 new Uint8Array(32),
-                BigInt(balance) - BigInt(fee),
+                balance - fee,
+                fee,
             );
             if ("Err" in result) {
                 alert(`Error: ${result.Err}`);

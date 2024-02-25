@@ -44,11 +44,13 @@ export const depositFromWallet = async (
                 tokenData.symbol
             } TO BEACON...`,
         );
+        let fee = BigInt(tokenFee(tokenId));
         const result: any = await window.api.transfer(
             Principal.fromText(tokenId),
             Principal.from(process.env.CANISTER_ID),
             window.principalId.toUint8Array(),
-            balance - BigInt(tokenFee(tokenId)),
+            balance - fee,
+            fee,
         );
         if ("Err" in result) {
             console.error(result.Err);
