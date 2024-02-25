@@ -122,10 +122,6 @@ const BalanceLine = ({
         setStatus(msg);
         setTimeout(() => setStatus(""), 10 * 1000);
     };
-    const callBackWithStatus = (msg: string) => {
-        showStatus(msg);
-        window.refreshBackendData();
-    };
     return (
         <div key={id} className="row_container vcentered bottom_spaced">
             {status && <span>{status}</span>}
@@ -152,18 +148,14 @@ const BalanceLine = ({
                             classNameArg="left_half_spaced"
                             onClick={() =>
                                 mark == "internal"
-                                    ? withdrawToWallet(
-                                          id,
-                                          decimals,
-                                          callBackWithStatus,
-                                      )
+                                    ? withdrawToWallet(id, decimals, showStatus)
                                     : withdrawToPrincipal(
                                           id,
                                           fee,
                                           balance,
                                           decimals,
                                           symbol,
-                                          callBackWithStatus,
+                                          showStatus,
                                       )
                             }
                             label="WITHDRAW"
@@ -186,8 +178,10 @@ const withdrawToWallet = async (
             alert(`Error: ${result.Err}`);
             return;
         }
-        if ("Ok" in result)
+        if ("Ok" in result) {
+            await window.refreshBackendData();
             callback(`SUCCESS! WITHDREW ${token(result.Ok, decimals)} TOKENS.`);
+        }
     } catch (e) {
         alert(e);
     }
@@ -221,8 +215,10 @@ const withdrawToPrincipal = async (
                 alert(`Error: ${result.Err}`);
                 return;
             }
-            if ("Ok" in result)
+            if ("Ok" in result) {
+                await window.refreshBackendData();
                 callback(`SUCCESS! TRANSACTION ID: ${result.Ok}`);
+            }
         } catch (e) {
             alert(e);
         }

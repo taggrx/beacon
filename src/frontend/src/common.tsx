@@ -48,7 +48,7 @@ export const depositFromWallet = async (
             Principal.fromText(tokenId),
             Principal.from(process.env.CANISTER_ID),
             window.principalId.toUint8Array(),
-            balance - tokenFee(tokenId),
+            balance - BigInt(tokenFee(tokenId)),
         );
         if ("Err" in result) {
             console.error(result.Err);
@@ -64,6 +64,7 @@ export const depositFromWallet = async (
             statusCallback("🔴 DEPOSIT FAILED.");
             return;
         }
+        await window.refreshBackendData();
     }
 };
 
@@ -83,8 +84,7 @@ export const TokenLogo = ({}) => (
 export const tokenBase = (tokenId: string) =>
     Math.pow(10, window.tokenData[tokenId].decimals);
 
-export const tokenFee = (tokenId: string) =>
-    BigInt(window.tokenData[tokenId].fee);
+export const tokenFee = (tokenId: string) => window.tokenData[tokenId].fee;
 
 export const bigScreen = () => window.innerWidth >= 1024;
 

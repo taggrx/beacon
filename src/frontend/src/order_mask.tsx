@@ -7,6 +7,7 @@ import {
     depositFromWallet,
     token,
     tokenBase,
+    tokenFee,
 } from "./common";
 
 export const OrderMask = ({
@@ -47,6 +48,9 @@ export const OrderMask = ({
             return;
         }
         setParsedPrice(parsedPrice);
+    }, [price, amount]);
+
+    React.useEffect(() => {
         setStatus(
             <span>
                 {orderType.toString().toUpperCase()}{" "}
@@ -69,7 +73,8 @@ export const OrderMask = ({
                 {` (FEE ${Number(window.data.fee) / 100}%)`}
             </span>,
         );
-    }, [price, amount]);
+    }, [parsedPrice, parsedAmount]);
+
     const action = orderType.toString().toUpperCase();
 
     return (
@@ -84,9 +89,23 @@ export const OrderMask = ({
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                     />
-                    <span style={{ width: "5em", textAlign: "left" }}>
+                    <span style={{ width: "4em", textAlign: "left" }}>
                         {symbol}
                     </span>
+                    {orderType == OrderType.Sell && (
+                        <Button
+                            onClick={async () => {
+                                await depositFromWallet(tokenId, callback);
+                                const liquidity =
+                                    window.internalBalances[tokenId][0] -
+                                    tokenFee(tokenId);
+                                setAmount(
+                                    token(liquidity, tokenDecimals).toString(),
+                                );
+                            }}
+                            label="MAX"
+                        />
+                    )}
                 </div>
                 <div className="row_container vcentered bottom_spaced modal">
                     LIMIT
@@ -103,7 +122,7 @@ export const OrderMask = ({
                         value={price}
                         onChange={(e) => setPrice(e.target.value)}
                     />
-                    <span style={{ width: "5em", textAlign: "left" }}>
+                    <span style={{ width: "4em", textAlign: "left" }}>
                         {paymentToken.symbol}
                     </span>
                 </div>
