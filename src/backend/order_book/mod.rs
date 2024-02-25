@@ -132,7 +132,7 @@ impl State {
         let mut deleted_archived_orders = 0;
         for archive in self.order_archive.values_mut() {
             let length_before = archive.len();
-            archive.retain(|order| order.timestamp + 3 * ORDER_EXPIRATION_DAYS * DAY < now);
+            archive.retain(|order| order.timestamp + 3 * ORDER_EXPIRATION_DAYS * DAY > now);
             deleted_archived_orders += length_before.saturating_sub(archive.len());
         }
 
@@ -166,7 +166,10 @@ impl State {
             });
 
         if closed_orders > 0 || deleted_archived_orders > 0 || deleted_logs > 0 {
-            self.log(format!("Clean up routine: {} logs removed, {} archived orders removed, {} expired orders closed", deleted_logs, deleted_archived_orders, closed_orders));
+            self.log(format!(
+                "clean up: {} logs removed, {} archived orders removed, {} expired orders closed",
+                deleted_logs, deleted_archived_orders, closed_orders
+            ));
         }
     }
 
