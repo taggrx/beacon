@@ -7,7 +7,7 @@ use candid::{CandidType, Principal};
 use ic_ledger_types::{DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
 use serde::{Deserialize, Serialize};
 
-use crate::icrc1::Value;
+use crate::{icrc1::Value, DAY};
 
 pub const PAYMENT_TOKEN_ID: Principal = MAINNET_LEDGER_CANISTER_ID;
 pub type Timestamp = u64;
@@ -16,7 +16,9 @@ pub type TokenId = Principal;
 pub type E8sPerToken = u128;
 pub type E8s = u128;
 
-pub const TX_FEE: u128 = 1; // 0.25% per trade side
+pub const TX_FEE: u128 = 5; // 0.25% per trade side
+
+const ORDER_EXPIRATION_DAYS: u64 = 30;
 
 #[derive(CandidType, Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum OrderType {
@@ -118,6 +120,56 @@ pub struct State {
 }
 
 impl State {
+    pub fn clean_up(&mut self, now: Timestamp) {
+        // Rotate logs
+        let mut deleted_logs = 0;
+        while self.logs.len() > 10000 {
+            self.logs.pop_back();
+            deleted_logs += 1;
+        }
+
+        // Remove all archived orders older than 3 months
+        let mut deleted_archived_orders = 0;
+        for archive in self.order_archive.values_mut() {
+            let length_before = archive.len();
+            archive.retain(|order| order.timestamp + 3 * ORDER_EXPIRATION_DAYS * DAY < now);
+            deleted_archived_orders += length_before.saturating_sub(archive.len());
+        }
+
+        // Close all orders older than 1 months
+        let mut closed_orders = 0;
+        self.orders
+            .iter()
+            .flat_map(|(token, book)| {
+                book.buyers
+                    .iter()
+                    .map(|order| (OrderType::Buy, order))
+                    .chain(book.sellers.iter().map(|order| (OrderType::Sell, order)))
+                    .map(move |(t, order)| (*token, t, order.clone()))
+            })
+            .filter(|(_, _, order)| order.timestamp + ORDER_EXPIRATION_DAYS * DAY < now)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|(token, order_type, order)| {
+                if let Err(err) = self.close_order(
+                    order.owner,
+                    token,
+                    order.amount,
+                    order.price,
+                    order.timestamp,
+                    order_type,
+                ) {
+                    self.log(format!("failed to close an expired order: {}", err))
+                } else {
+                    closed_orders += 1
+                }
+            });
+
+        if closed_orders > 0 || deleted_archived_orders > 0 || deleted_logs > 0 {
+            self.log(format!("Clean up routine: {} logs removed, {} archived orders removed, {} expired orders closed", deleted_logs, deleted_archived_orders, closed_orders));
+        }
+    }
+
     pub fn traders(&self) -> usize {
         self.orders
             .values()
