@@ -53,7 +53,10 @@ const App = () => {
         content = <Logs />;
     } else if (param == "list") {
         content = <Listing tokenId={param2} />;
-    } else if (typeof param == "string") {
+    } else if (
+        typeof param == "string" &&
+        param != "ryjl3-tyaaa-aaaaa-aaaba-cai"
+    ) {
         content = <Token tokenId={param} />;
     }
     if (content)
