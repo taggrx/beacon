@@ -18,7 +18,7 @@ pub type E8s = u128;
 
 pub const TX_FEE: u128 = 1; // 0.XX% per trade side
 
-const ORDER_EXPIRATION_DAYS: u64 = 30;
+const ORDER_EXPIRATION_DAYS: u64 = 90;
 
 #[derive(CandidType, Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum OrderType {
@@ -132,7 +132,7 @@ impl State {
         let mut deleted_archived_orders = 0;
         for archive in self.order_archive.values_mut() {
             let length_before = archive.len();
-            archive.retain(|order| order.timestamp + 3 * ORDER_EXPIRATION_DAYS * DAY > now);
+            archive.retain(|order| order.timestamp + 2 * ORDER_EXPIRATION_DAYS * DAY > now);
             deleted_archived_orders += length_before.saturating_sub(archive.len());
         }
 
