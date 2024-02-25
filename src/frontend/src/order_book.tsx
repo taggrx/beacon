@@ -14,6 +14,7 @@ export const OrderBook = ({
 }) => {
     const [buyOrders, setBuyOrders] = React.useState<Order[]>([]);
     const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
+    const [showAllOrders, setShowAllOrders] = React.useState(false);
     const loadData = async () => {
         const [buyOrders, sellOrders] = await Promise.all([
             await window.api.orders(Principal.fromText(tokenId), OrderType.Buy),
@@ -94,7 +95,7 @@ export const OrderBook = ({
             </tr>
         ));
 
-    const render = (orders: Order[], orderType: OrderType) =>
+    const render = (orders: Order[], orderType: OrderType, showAll: boolean) =>
         orders.length == 0 ? null : (
             <div
                 className="column_container max_width_col bottom_spaced"
@@ -143,7 +144,7 @@ export const OrderBook = ({
                         )}
                     </h4>
                 </div>
-                {orders.map((order, i) => (
+                {(showAll ? orders : orders.slice(0, 10)).map((order, i) => (
                     <div
                         key={i}
                         className="column_container"
@@ -203,9 +204,16 @@ export const OrderBook = ({
     return (
         <>
             <div className="row_container">
-                {render(buyOrders, OrderType.Buy)}
-                {render(sellOrders, OrderType.Sell)}
+                {render(buyOrders, OrderType.Buy, showAllOrders)}
+                {render(sellOrders, OrderType.Sell, showAllOrders)}
             </div>
+            {!showAllOrders && (
+                <div className="text_centered">
+                    <button onClick={() => setShowAllOrders(true)}>
+                        SHOW ALL
+                    </button>
+                </div>
+            )}
             {(userOrders.buy.length > 0 || userOrders.sell.length > 0) && (
                 <>
                     <h2>YOUR STANDING ORDERS</h2>
