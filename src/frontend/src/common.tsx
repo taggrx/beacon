@@ -16,7 +16,7 @@ export const II_DERIVATION_URL = mainnetMode
     : window.location.origin;
 
 export const token = (
-    amount: BigInt,
+    amount: BigInt | number,
     decimals: number,
     showDecimals: boolean = true,
 ) => {
@@ -66,6 +66,9 @@ export const depositFromWallet = async (
         }
     }
 };
+
+export const tokenBase = (tokenId: string) =>
+    Math.pow(10, window.tokenData[tokenId].decimals);
 
 export const tokenFee = (tokenId: string) =>
     BigInt(window.tokenData[tokenId].fee);

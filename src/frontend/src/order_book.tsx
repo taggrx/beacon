@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { Button, PAYMENT_TOKEN_ID, orderId, token } from "./common";
+import { Button, PAYMENT_TOKEN_ID, orderId, token, tokenBase } from "./common";
 
 export const OrderBook = ({
     tokenId,
@@ -115,13 +115,32 @@ export const OrderBook = ({
                 >
                     <h3>{orderType == OrderType.Buy ? "BUYERS" : "SELLERS"}</h3>
                     <h4>
-                        {token(
-                            orders.reduce(
-                                (acc, order) => acc + order.amount,
-                                BigInt(0),
-                            ),
-                            tokenData.decimals,
-                        ).toLocaleString()}
+                        {orderType == OrderType.Buy ? (
+                            <>
+                                {token(
+                                    orders.reduce(
+                                        (acc, order) =>
+                                            acc +
+                                            Number(order.amount * order.price) /
+                                                tokenBase(tokenId),
+                                        0,
+                                    ),
+                                    paymentTokenDataData.decimals,
+                                ).toLocaleString()}{" "}
+                                {paymentTokenDataData.symbol}
+                            </>
+                        ) : (
+                            <>
+                                {token(
+                                    orders.reduce(
+                                        (acc, order) => acc + order.amount,
+                                        BigInt(0),
+                                    ),
+                                    tokenData.decimals,
+                                ).toLocaleString()}{" "}
+                                {tokenData.symbol}
+                            </>
+                        )}
                     </h4>
                 </div>
                 {orders.map((order, i) => (

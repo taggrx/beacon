@@ -1,7 +1,13 @@
 import * as React from "react";
 import { OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { Button, PAYMENT_TOKEN_ID, depositFromWallet, token } from "./common";
+import {
+    Button,
+    PAYMENT_TOKEN_ID,
+    depositFromWallet,
+    token,
+    tokenBase,
+} from "./common";
 
 export const OrderMask = ({
     tokenId,
@@ -26,7 +32,7 @@ export const OrderMask = ({
     const icrcToken = window.tokenData[tokenId];
     const tokenDecimals = icrcToken.decimals;
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
-    const tokenBase = Math.pow(10, tokenDecimals);
+    const base = tokenBase(tokenId);
 
     React.useEffect(() => {
         const parsedAmount = parseNumber(amount, tokenDecimals);
@@ -44,7 +50,7 @@ export const OrderMask = ({
         setStatus(
             <span>
                 {orderType.toString().toUpperCase()}{" "}
-                <code>{token(BigInt(parsedAmount), tokenDecimals)}</code>{" "}
+                <code>{token(parsedAmount, tokenDecimals)}</code>{" "}
                 <u>{icrcToken.symbol}</u>{" "}
                 {parsedPrice == 0 ? (
                     "AT MARKET PRICE"
@@ -53,12 +59,7 @@ export const OrderMask = ({
                         FOR{" "}
                         <code>
                             {token(
-                                BigInt(
-                                    Math.floor(
-                                        (parsedPrice * parsedAmount) /
-                                            tokenBase,
-                                    ),
-                                ),
+                                Math.floor((parsedPrice * parsedAmount) / base),
                                 paymentToken.decimals,
                             )}
                         </code>{" "}

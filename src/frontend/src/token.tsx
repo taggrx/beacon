@@ -146,12 +146,6 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     </table>
                 </>
             )}
-            <br />
-            <h2>MENTIONS ON TAGGR</h2>
-            <iframe
-                src={`https://6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app/#/feed/${symbol}`}
-                title={`${symbol} on Taggr`}
-            />
         </>
     );
 };
