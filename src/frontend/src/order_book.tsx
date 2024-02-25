@@ -3,6 +3,8 @@ import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
 import { Button, PAYMENT_TOKEN_ID, orderId, token, tokenBase } from "./common";
 
+const MAX_ORDERS = 10;
+
 export const OrderBook = ({
     tokenId,
     heartbeat,
@@ -16,15 +18,18 @@ export const OrderBook = ({
     const [sellOrders, setSellOrders] = React.useState<Order[]>([]);
     const [showAllOrders, setShowAllOrders] = React.useState(false);
     const loadData = async () => {
-        const [buyOrders, sellOrders] = await Promise.all([
+        const [buyOrders, sellOrders]: [Order[], Order[]] = (await Promise.all([
             await window.api.orders(Principal.fromText(tokenId), OrderType.Buy),
             await window.api.orders(
                 Principal.fromText(tokenId),
                 OrderType.Sell,
             ),
-        ]);
-        setBuyOrders(buyOrders as unknown as any);
-        setSellOrders(sellOrders as unknown as any);
+        ])) as unknown as any;
+        setBuyOrders(buyOrders);
+        setSellOrders(sellOrders);
+        setShowAllOrders(
+            buyOrders.length <= MAX_ORDERS && sellOrders.length <= MAX_ORDERS,
+        );
     };
 
     React.useEffect(() => {
@@ -144,60 +149,66 @@ export const OrderBook = ({
                         )}
                     </h4>
                 </div>
-                {(showAll ? orders : orders.slice(0, 10)).map((order, i) => (
-                    <div
-                        key={i}
-                        className="column_container"
-                        style={{
-                            width: "100%",
-                            alignItems:
-                                orderType == OrderType.Buy
-                                    ? "flex-end"
-                                    : "flex-start",
-                            fontSize: "small",
-                            color: orderType == OrderType.Buy ? "green" : "red",
-                            boxSizing: "border-box",
-                        }}
-                    >
+                {(showAll ? orders : orders.slice(0, MAX_ORDERS)).map(
+                    (order, i) => (
                         <div
+                            key={i}
+                            className="column_container"
                             style={{
-                                paddingLeft: "0.5em",
-                                paddingRight: "0.5em",
-                            }}
-                        >
-                            {token(
-                                order.price,
-                                window.tokenData[PAYMENT_TOKEN_ID].decimals,
-                            )}{" "}
-                            {window.tokenData[PAYMENT_TOKEN_ID].symbol}
-                        </div>
-                        <div
-                            style={{
-                                width: `${
-                                    (Number(order.amount) / maxOrderSize) * 100
-                                }%`,
-                                color: "white",
+                                width: "100%",
+                                alignItems:
+                                    orderType == OrderType.Buy
+                                        ? "flex-end"
+                                        : "flex-start",
                                 fontSize: "small",
-                                paddingLeft: "0.5em",
-                                paddingRight: "0.5em",
+                                color:
+                                    orderType == OrderType.Buy
+                                        ? "green"
+                                        : "red",
                                 boxSizing: "border-box",
-                                direction:
-                                    orderType == OrderType.Buy
-                                        ? "rtl"
-                                        : undefined,
-                                background:
-                                    orderType == OrderType.Buy
-                                        ? "#008800"
-                                        : "#cc0000",
                             }}
                         >
-                            {token(
-                                order.amount,
-                                window.tokenData[tokenId].decimals,
-                            )}
+                            <div
+                                style={{
+                                    paddingLeft: "0.5em",
+                                    paddingRight: "0.5em",
+                                }}
+                            >
+                                {token(
+                                    order.price,
+                                    window.tokenData[PAYMENT_TOKEN_ID].decimals,
+                                )}{" "}
+                                {window.tokenData[PAYMENT_TOKEN_ID].symbol}
+                            </div>
+                            <div
+                                style={{
+                                    width: `${
+                                        (Number(order.amount) / maxOrderSize) *
+                                        100
+                                    }%`,
+                                    color: "white",
+                                    fontSize: "small",
+                                    paddingLeft: "0.5em",
+                                    paddingRight: "0.5em",
+                                    boxSizing: "border-box",
+                                    direction:
+                                        orderType == OrderType.Buy
+                                            ? "rtl"
+                                            : undefined,
+                                    background:
+                                        orderType == OrderType.Buy
+                                            ? "#008800"
+                                            : "#cc0000",
+                                }}
+                            >
+                                {token(
+                                    order.amount,
+                                    window.tokenData[tokenId].decimals,
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ),
+                )}
             </div>
         );
 

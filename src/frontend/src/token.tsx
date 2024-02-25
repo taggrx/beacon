@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
-import { PAYMENT_TOKEN_ID, orderId, token, timeAgo } from "./common";
+import { PAYMENT_TOKEN_ID, orderId, token, timeAgo, TokenLogo } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
 import { OrderBook } from "./order_book";
@@ -39,7 +39,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     return (
         <>
             <div className="row_container vcentered x_large_text bottom_spaced">
-                <div className="max_width_col">
+                <div className="max_width_col vcentered">
                     {logo ? (
                         <img
                             height="50"
@@ -48,9 +48,11 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                             className="align-middle right_spaced"
                         />
                     ) : (
-                        <span>💎 </span>
+                        <TokenLogo />
                     )}
-                    <code className="max_width_col">{symbol}</code>
+                    <code className="left_half_spaced max_width_col">
+                        {symbol}
+                    </code>
                 </div>
                 {executedOrders.length > 0 && (
                     <code>

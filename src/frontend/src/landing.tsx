@@ -1,17 +1,25 @@
 import { Principal } from "@dfinity/principal";
-import { ConnectButton, PAYMENT_TOKEN_ID, bigScreen, token } from "./common";
+import {
+    ConnectButton,
+    PAYMENT_TOKEN_ID,
+    TokenLogo,
+    bigScreen,
+    token,
+} from "./common";
 import * as React from "react";
 import { Wallet } from "./wallet";
-import { Order } from "./types";
+import { Metadata, Order } from "./types";
 
 export const Landing = ({}) => {
     const [orders, setOrders] = React.useState<{ [name: string]: Order }>({});
+    const [shortenList, setShortenList] = React.useState(false);
 
     const loadData = async () => {
         const orders = await window.api.query<{ [name: string]: Order }>(
             "prices",
         );
         if (orders) setOrders(orders);
+        setShortenList(Object.keys(window.tokenData).length > 5);
     };
 
     React.useEffect(() => {
@@ -28,6 +36,12 @@ export const Landing = ({}) => {
         tokens_listed,
         active_traders,
     } = window.data;
+
+    const timestamp = (id: string) => (id in orders ? orders[id].timestamp : 0);
+    const tokenList = (inputs: [string, Metadata][]) => {
+        inputs.sort(([id1], [id2]) => timestamp(id2) - timestamp(id1));
+        return shortenList ? inputs.slice(0, 5) : inputs;
+    };
 
     return (
         <div>
@@ -98,6 +112,7 @@ export const Landing = ({}) => {
             </div>
             <br />
             <br />
+            <br />
             <div
                 className="column_container"
                 style={{
@@ -106,54 +121,63 @@ export const Landing = ({}) => {
                     marginRight: "auto",
                 }}
             >
-                {Object.entries(window.tokenData)
-                    .filter((entry) => entry[0] != PAYMENT_TOKEN_ID)
-                    .map(([id, { symbol, logo }]) => (
-                        <div
-                            key={id}
-                            className="row_container vcentered bottom_spaced x_large"
-                        >
-                            <div className="right_half_spaced vcentered">
-                                {logo ? (
-                                    <img
-                                        src={`${logo}`}
-                                        width="20px"
-                                        height="20px"
-                                    />
-                                ) : (
-                                    <span style={{ width: "20px" }}>💎</span>
-                                )}
-                            </div>{" "}
-                            <a href={`#/${id}`}>{symbol}</a>
-                            <div className="max_width_col"></div>
-                            <code>
-                                {orders[id]
-                                    ? token(
-                                          orders[id].price,
-                                          paymentToken.decimals,
-                                      )
-                                    : 0}{" "}
-                                {paymentToken.symbol}
-                            </code>
-                        </div>
-                    ))}
+                {tokenList(
+                    Object.entries(window.tokenData).filter(
+                        (entry) => entry[0] != PAYMENT_TOKEN_ID,
+                    ),
+                ).map(([id, { symbol, logo }]) => (
+                    <div
+                        key={id}
+                        className="row_container vcentered bottom_spaced x_large"
+                    >
+                        <div className="right_half_spaced vcentered">
+                            {logo ? (
+                                <img
+                                    src={`${logo}`}
+                                    width="20px"
+                                    height="20px"
+                                />
+                            ) : (
+                                <TokenLogo />
+                            )}
+                        </div>{" "}
+                        <a href={`#/${id}`}>{symbol}</a>
+                        <div className="max_width_col"></div>
+                        <code>
+                            {orders[id]
+                                ? token(orders[id].price, paymentToken.decimals)
+                                : 0}{" "}
+                            {paymentToken.symbol}
+                        </code>
+                    </div>
+                ))}
                 <br />
-                <button
-                    onClick={() => {
-                        try {
-                            const input =
-                                prompt("Enter the canister id:") || "";
-                            if (!input) return;
-                            const id = Principal.fromText(input);
-                            if (!id) return;
-                            location.href = `#/${id.toString()}`;
-                        } catch (e) {
-                            alert(e);
-                        }
-                    }}
-                >
-                    LIST YOUR TOKEN NOW!
-                </button>
+                <div className="row_container">
+                    {shortenList && (
+                        <div className="text_centered max_width_col">
+                            <button onClick={() => setShortenList(false)}>
+                                SHOW ALL
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        className="max_width_col"
+                        onClick={() => {
+                            try {
+                                const input =
+                                    prompt("Enter the canister id:") || "";
+                                if (!input) return;
+                                const id = Principal.fromText(input);
+                                if (!id) return;
+                                location.href = `#/${id.toString()}`;
+                            } catch (e) {
+                                alert(e);
+                            }
+                        }}
+                    >
+                        LIST YOUR TOKEN NOW!
+                    </button>
+                </div>
             </div>
         </div>
     );

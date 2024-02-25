@@ -67,6 +67,19 @@ export const depositFromWallet = async (
     }
 };
 
+export const TokenLogo = ({}) => (
+    <span
+        style={{
+            width: "20px",
+            color: "transparent",
+            fontSize: "80%",
+            textShadow: "0 0 0 #cbcbbf",
+        }}
+    >
+        💎
+    </span>
+);
+
 export const tokenBase = (tokenId: string) =>
     Math.pow(10, window.tokenData[tokenId].decimals);
 
