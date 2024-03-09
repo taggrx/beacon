@@ -151,7 +151,7 @@ const BalanceLine = ({
                                     ? withdrawToWallet(id, decimals, showStatus)
                                     : withdrawToPrincipal(
                                           id,
-                                          fee,
+                                          BigInt(fee),
                                           balance,
                                           decimals,
                                           symbol,
