@@ -88,7 +88,7 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
         mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, wallet_balance),
             Some((token, wallet_balance as i128)),
-        )?;
+        );
     }
     Ok(())
 }
@@ -97,8 +97,6 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
 async fn trade(
     token: TokenId,
     amount: u128,
-    // S4: `price` is implicitly optional: 0 means `None`. Maybe make it
-    // explicit for readability and safety.
     price: Tokens,
     order_type: OrderType,
 ) -> OrderExecution {
@@ -144,12 +142,10 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
     .map_err(|err| {
         let error = format!("withdraw transfer failed: {}", err);
         mutate(|state| state.log(error.clone()));
-        if let Err(err) = mutate_with_invarant_check(
+        mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, balance),
             Some((token, balance as i128)),
-        ) {
-            mutate(|state| state.log(format!("couldn't restore liquidity: {}", err)));
-        };
+        );
         error
     })
     .map(|_| amount)
