@@ -55,6 +55,7 @@ fn logs() {
 }
 
 #[derive(Serialize)]
+// S4: typo in `Backend`?
 struct BackenData {
     volume_day: u128,
     trades_day: u64,

@@ -70,6 +70,8 @@ where
             if delta == 0 && balance == &0 {
                 balances_after.retain(|(id, _)| id != &token_id.to_string());
             } else {
+                // S3: check that balance fits into `i128`.
+                // and check that subtracted result is not negative.
                 *balance = (*balance as i128 - delta) as u128;
             }
         }

@@ -66,6 +66,9 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
         .checked_sub(fee)
         .unwrap_or_default();
 
+    // S3: check that `wallet_balance` doesn't exceed some upper bound such that
+    // there is no potential overflow of `i128`?
+
     // if the balance is above 0, move everything from the wallet to BEACON
     if wallet_balance > 0 {
         icrc1::transfer(
@@ -81,6 +84,8 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
             mutate(|state| state.log(error.clone()));
             error
         })?;
+        // S3: Potential loss of user funds if this fails.
+        // We need to somehow ensure that this cannot fail.
         mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, wallet_balance),
             Some((token, wallet_balance as i128)),
@@ -93,8 +98,11 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
 async fn trade(
     token: TokenId,
     amount: u128,
+    // S4: `price` is implicitly optional: 0 means `None`. Maybe make it
+    // explicit for readability and safety.
     price: Tokens,
     order_type: OrderType,
+    // S4: replace `bool` with readable enum.
 ) -> Vec<(u128, bool)> {
     vec![mutate(|state| {
         state
@@ -120,8 +128,11 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
     }
     let balance = mutate_with_invarant_check(
         |state| state.withdraw_liquidity(user, token),
+        // S3: check that `existing_balance` fits in `i128`.
         Some((token, -(existing_balance as i128))),
     )?;
+    // S3: assert that `balance` is equal to `existing_balance` so that
+    // subtraction below doesn't underflow.
     let amount = balance - fee;
     icrc1::transfer(
         token,
@@ -138,6 +149,8 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
         let error = format!("withdraw transfer failed: {}", err);
         mutate(|state| state.log(error.clone()));
         // if the withdraw failed, restore liquidity
+        // S3: Potential loss of user funds if this fails.
+        // Need to ensure that this cannot fail.
         if let Err(err) = mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, balance),
             Some((token, balance as i128)),

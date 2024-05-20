@@ -37,21 +37,33 @@ impl OrderType {
 
 #[derive(CandidType, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Order {
+    // The direction of the order w.r.t to the underlying token.
+    // Buy: the user is buying the underlying token for ICP.
+    // Sell: the user is selling the underlying token for ICP.
     order_type: OrderType,
+    // The user who created the order.
     owner: Principal,
     amount: Tokens,
     price: E8sPerToken,
+    // The time when the order was created.
     timestamp: Timestamp,
+    // Implicit encoding of optional type: 0 means None - not executed yet.
     pub executed: Timestamp,
+    // The number of ICRC-1 decimals in the underlying token.
     decimals: u32,
 }
 
 impl Order {
+    /// The volume of this trade expressed in E8S ICP.
     pub fn volume(&self) -> Tokens {
         let token_base = 10_u128.pow(self.decimals);
+        // S3: check for the overflow.
         (self.amount * self.price) / token_base
     }
 
+    /// The amount of user's tokens reserved for the trade.
+    /// - buy: ICP token + fee.
+    /// - sell: the underlying token.
     fn reserved_liquidity(&self) -> Tokens {
         if self.order_type.buy() {
             let volume = self.volume();
@@ -70,11 +82,27 @@ impl PartialOrd for Order {
 
 impl Ord for Order {
     fn cmp(&self, other: &Self) -> Ordering {
+        // S4: It might be more readable and performant to
+        // use the pattern where primary key comes first:
+        //
+        // if self.price != other.price {
+        //   return self.price.cmp(&other.price);
+        // }
+        //
+        // if self.timestamp != other.timestamp {
+        //   return self.timestamp.cmp(&other.timestamp);
+        // }
+        //
+        // ...
+        //
+        // return Ordering::Equal
         if self.owner == other.owner
             && self.amount == other.amount
             && self.price == other.price
             && self.timestamp == other.timestamp
         {
+            // S4: assert that `order_type`, `executed` match?
+            // Mismatching `decimals` is allowed and `close_order` relies on it.
             return Ordering::Equal;
         }
         if self.price == other.price
@@ -95,7 +123,14 @@ impl Ord for Order {
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 struct Book {
+    // Invariants for x in buyers:
+    // - x.order_type == OrderType::Buy
+    // - x.executed == 0
     buyers: BTreeSet<Order>,
+
+    // Invariants for x in sellers:
+    // - x.order_type == OrderType::Sell
+    // - x.executed == 0
     sellers: BTreeSet<Order>,
 }
 
@@ -109,8 +144,11 @@ pub struct Metadata {
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct State {
+    // All open orders
     orders: BTreeMap<TokenId, Book>,
+    // Executed or expired orders.
     pub order_archive: BTreeMap<TokenId, VecDeque<Order>>,
+    // How many tokens each user owns.
     pools: BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
     pub tokens: BTreeMap<TokenId, Metadata>,
     pub e8s_per_xdr: u64,
@@ -135,6 +173,9 @@ impl State {
             archive.retain(|order| order.timestamp + 2 * ORDER_EXPIRATION_DAYS * DAY > now);
             deleted_archived_orders += length_before.saturating_sub(archive.len());
         }
+
+        // S3: to guarantee that this never runs out of instructions, we need an
+        // upper bound on the total number of orders here.
 
         // Close all orders older than 1 months
         let mut closed_orders = 0;
@@ -173,6 +214,7 @@ impl State {
         }
     }
 
+    /// Returns all users that haev open orders.
     pub fn traders(&self) -> usize {
         self.orders
             .values()
@@ -185,6 +227,8 @@ impl State {
     pub fn list_token(
         &mut self,
         token: TokenId,
+        // S4: it might be simpler to have a struct with fixed field instead of this map:
+        // struct { symbol: Value, fee: Value, decimal: Value, logo: Value}.
         metadata: BTreeMap<String, Value>,
     ) -> Result<(), String> {
         match (
@@ -282,6 +326,10 @@ impl State {
         )
     }
 
+    /// Returns open orders sorted by "the best price" for the order type.
+    /// - Buy: highest price first
+    /// - Sell: lowest price first
+    /// Note: used in a query and tests only.
     pub fn orders(
         &self,
         token: TokenId,
@@ -298,6 +346,7 @@ impl State {
     }
 
     /// Returns liquidity for each listed token together with the liquidity locked in orders.
+    /// Note: used in a query and tests only.
     pub fn token_balances(&self, user: Principal) -> BTreeMap<TokenId, (Tokens, Tokens)> {
         self.tokens
             .keys()
@@ -353,6 +402,8 @@ impl State {
             .ok_or("no token listed".into())
     }
 
+    /// Transfers the given number of ICP tokens from the user balance to the
+    /// revenue account balance.
     pub fn charge(&mut self, user: Principal, amount: Tokens) -> Result<(), String> {
         let payment_token_pool = self
             .pools
@@ -369,6 +420,7 @@ impl State {
         Ok(())
     }
 
+    /// Adds the given tokens to the user account balance.
     pub fn add_liquidity(
         &mut self,
         user: Principal,
@@ -410,6 +462,9 @@ impl State {
         decimals: u32,
         logo: Option<String>,
     ) {
+        // S2: Should all open orders be closed when relisting the token with a
+        // different `decimals`? Or maybe disallow relisting with a different
+        // `decimals`.
         self.tokens.insert(
             id,
             Metadata {
@@ -441,6 +496,10 @@ impl State {
         }
         let metadata = self.tokens.get(&token).ok_or("token not listed")?;
 
+        // S2: check that `amount`, `price` are reasonable here: not too large, not too small.
+        // S2: limit the total number of orders per user to mitigate DoS?
+        // S2: check that `token` is not the payment token to exclude degenerate
+        // orders and simplify reasoning.
         let order = Order {
             order_type,
             owner: user,
@@ -466,6 +525,9 @@ impl State {
             return Err("not enough funds available for this order size".into());
         }
 
+        // S4: nit for readability.
+        // let inserted = if (..) {insert};
+        // if !inserted {return Err ...}
         if !(if order_type.buy() {
             order_book.buyers.insert(order)
         } else {
@@ -549,6 +611,9 @@ impl State {
             orders.pop_last()
         } {
             // limit checks
+            // S4: if let Some(limit) = limit {
+            //   ...
+            // }
             if trade_type.buy() && limit.is_some() && limit < Some(order.price)
                 || trade_type.sell() && limit > Some(order.price)
             {
@@ -562,13 +627,24 @@ impl State {
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
                 let new_reserved_liquidity = remaining_order.reserved_liquidity();
+
+                // S1: potential loss of `remaining_order` if `orders` already contains
+                // the order for the new remaining amount.
+                // A possible solution: do not allow creating multiple orders
+                // from the same (user, token, order_type) at the same timestamp.
                 orders.insert(remaining_order);
                 order.amount = amount;
                 let freed_liquidity = prev_reserved_liquidity
                     .saturating_sub(new_reserved_liquidity + order.reserved_liquidity());
+                // S3: if prev_reserved_liquidity < new_reserved_liquidity + order.reserved_liquidity(),
+                // then that could lead to failures in `funds_under_management()` checks which
+                // could block all trading for that token.
                 if freed_liquidity > 0 {
                     // Freeing of liquidity on an order split can only happen for sell orders,
                     // becasue the reserved ICP liquidity is computed using integer division.
+
+                    // Nit: typo in "because" above. Also it is easier to understand in terms of
+                    // `order.order_type == buy` because `reserved_liquidity` is related to that.
                     assert!(trade_type.sell());
                     if let Some(liquidity) = self
                         .pools
@@ -627,6 +703,7 @@ impl State {
             .map(|(id, pool)| {
                 (
                     id.to_string(),
+                    // S3: check that `sum` doesn't overflow here and below?
                     pool.values().sum::<Tokens>()
                         + if id == &PAYMENT_TOKEN_ID {
                             self.orders
@@ -705,6 +782,27 @@ impl State {
     }
 }
 
+/// Updates balances to execute the given order.
+/// The trader's balances are in the pool.
+/// The order owner's balances are partialyl in the pool and the order itself.
+/// S4: It might be more readable to split this into buy / sell cases.
+/// 1) Buy case:
+/// - the trader buys N tokens for M + FEE ICP.
+/// - the order contains N tokens.
+/// - the type of the order is sell.
+/// - pool[ICP][trader] -= M + FEE
+/// - pool[ICP][order.owner] += M - FEE
+/// - pool[token][trader] += order.amount
+/// - pool[ICP][revenue] += 2*FEE
+///
+/// 2) Sell case:
+/// - the trader sell N tokens for M + FEE ICP.
+/// - the order contains M + FEE ICP.
+/// - the type of the order is buy.
+/// - pool[ICP][trader] += M - FEE
+/// - pool[token][order.owner] += order.amount
+/// - pool[token][trader] -= order.amount
+/// - pool[ICP][revenue] += 2*FEE
 fn adjust_pools(
     pools: &mut BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
     trader: Principal,
@@ -713,8 +811,12 @@ fn adjust_pools(
     revenue_account: Principal,
     // since the liquidity is locked inside the order, we need to know where we should avoid
     // adjusting pools
+    // S4: we could infer this from the order.trade_type.
     trade_type: OrderType,
 ) -> Result<(), String> {
+
+    // S4: assert that trade_type != order.trade_type.
+
     let (payment_receiver, token_receiver) = if trade_type.buy() {
         (order.owner, trader)
     } else {
@@ -722,6 +824,10 @@ fn adjust_pools(
     };
 
     let token_pool = pools.get_mut(&token).ok_or("no token pool found")?;
+
+    // S4: this comment is confusing (also typo in "because").
+    // A better would be: the liquidity for the buy order has already been reserved at order creation.
+
     // We only need to subtract token liquidity if we're executing a selling trade, becasue we
     // process buy orders
     if trade_type.sell() {
@@ -741,6 +847,7 @@ fn adjust_pools(
     let volume = order.volume();
     let fee = trading_fee(volume);
 
+    // S4: ditto: confusing comment and typo.
     // We only need to subtract payment liquidity if we're executing a buying trade, becasue we
     // process sell orders
     if trade_type.buy() {
@@ -753,6 +860,9 @@ fn adjust_pools(
     }
 
     let sellers_payment_tokens = payment_token_pool.entry(payment_receiver).or_default();
+    // S2: Someone could intentionally cause `volume < fee` in order to block
+    // execution of all orders.
+    // Potential solution: burn "dust" orders.
     *sellers_payment_tokens += volume.checked_sub(fee).ok_or("amount smaller than fee")?;
     let payment_fees = payment_token_pool.entry(revenue_account).or_default();
     *payment_fees += 2 * fee;
