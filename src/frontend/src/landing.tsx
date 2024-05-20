@@ -27,7 +27,7 @@ export const Landing = ({}) => {
     }, []);
     const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
     const {
-        icp_locked,
+        payment_token_locked,
         trades_day,
         volume_day,
         fee,
@@ -68,7 +68,11 @@ export const Landing = ({}) => {
                 <div className="dbcell">
                     <span>{paymentToken.symbol} LOCKED</span>
                     <code>
-                        {token(icp_locked, paymentToken.decimals, false)}{" "}
+                        {token(
+                            payment_token_locked,
+                            paymentToken.decimals,
+                            false,
+                        )}{" "}
                     </code>
                 </div>
                 <div className="dbcell">

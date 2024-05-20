@@ -59,7 +59,7 @@ fn logs() {
 struct BackenData {
     volume_day: u128,
     trades_day: u64,
-    icp_locked: u128,
+    payment_token_locked: u128,
     e8s_per_xdr: u64,
     fee: u128,
     cycle_balance: u64,
@@ -81,7 +81,7 @@ fn data() {
         BackenData {
             volume_day: day_orders.clone().map(|order| order.volume()).sum(),
             trades_day: day_orders.count() as u64,
-            icp_locked: state
+            payment_token_locked: state
                 .funds_under_management()
                 .iter()
                 .find_map(|(id, balance)| (&PAYMENT_TOKEN_ID.to_string() == id).then_some(balance))
@@ -91,7 +91,7 @@ fn data() {
             fee: TX_FEE,
             cycle_balance: canister_balance(),
             heap_size: heap_address().1,
-            // We subtract one, because the list of tokens always contains the ICP token
+            // We subtract one, because the list of tokens always contains the payment token
             tokens_listed: state.tokens.len() - 1,
             active_traders: state.traders(),
         }

@@ -8,6 +8,7 @@ import { Token } from "./token";
 import { ApiGenerator, Backend } from "./api";
 import { Principal } from "@dfinity/principal";
 import { Listing } from "./listing";
+import { PAYMENT_TOKEN_ID } from "./common";
 
 const parseHash = (): string[] => {
     const parts = window.location.hash.replace("#", "").split("/");
@@ -20,7 +21,7 @@ type Data = {
     fee: bigint;
     volume_day: bigint;
     trades_day: number;
-    icp_locked: bigint;
+    payment_token_locked: bigint;
     cycle_balance: number;
     heap_size: number;
     tokens_listed: number;
@@ -53,10 +54,7 @@ const App = () => {
         content = <Logs />;
     } else if (param == "list") {
         content = <Listing tokenId={param2} />;
-    } else if (
-        typeof param == "string" &&
-        param != "ryjl3-tyaaa-aaaaa-aaaba-cai"
-    ) {
+    } else if (typeof param == "string" && param != PAYMENT_TOKEN_ID) {
         content = <Token tokenId={param} />;
     }
     if (content)

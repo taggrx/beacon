@@ -814,7 +814,6 @@ fn adjust_pools(
     // S4: we could infer this from the order.trade_type.
     trade_type: OrderType,
 ) -> Result<(), String> {
-
     // S4: assert that trade_type != order.trade_type.
 
     let (payment_receiver, token_receiver) = if trade_type.buy() {
