@@ -13,6 +13,7 @@ type Order = record {
   price : nat;
   amount : nat;
 };
+type OrderExecution = variant { FilledAndOrderCreated : nat; Filled : nat };
 type OrderType = variant { Buy; Sell };
 type Result = variant { Ok; Err : text };
 type Result_1 = variant { Ok : nat; Err : text };
@@ -24,6 +25,6 @@ service : () -> {
   orders : (principal, OrderType) -> (vec Order) query;
   set_revenue_account : (principal) -> ();
   stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
-  trade : (principal, nat, nat, OrderType) -> (vec record { nat; bool });
+  trade : (principal, nat, nat, OrderType) -> (OrderExecution);
   withdraw : (principal) -> (Result_1);
 }

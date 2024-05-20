@@ -1,5 +1,5 @@
 import * as React from "react";
-import { OrderType } from "./types";
+import { OrderExecution, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
 import {
     Button,
@@ -181,20 +181,22 @@ const executeOrder = async (
     await depositFromWallet(paymentTokenId, statusCallback);
     statusCallback("EXECUTING THE TRADE...");
     try {
-        let [[filled, orderCreated]]: any = await window.api.trade(
+        let result = (await window.api.trade(
             Principal.from(tradedTokenId),
             amount,
             price,
             orderType,
-        );
+        )) as unknown as OrderExecution;
         const { decimals, symbol } = window.tokenData[tradedTokenId];
+        const filled = Object.values(result)[0];
         let status =
             filled > 0
                 ? `ORDER FILLED FOR ${token(filled, decimals)} ${symbol}. `
                 : "";
-        status += orderCreated
-            ? "AN ORDER WAS CREATED."
-            : "NO ORDER WAS CREATED.";
+        status +=
+            "FilledAndOrderCreated" in result
+                ? "AN ORDER WAS CREATED."
+                : "NO ORDER WAS CREATED.";
         statusCallback(status);
     } catch (error) {
         console.debug(error);

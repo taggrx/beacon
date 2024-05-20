@@ -1,3 +1,5 @@
+use crate::order_book::OrderExecution;
+
 use super::*;
 
 #[init]
@@ -66,8 +68,7 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
         .checked_sub(fee)
         .unwrap_or_default();
 
-    // S3: check that `wallet_balance` doesn't exceed some upper bound such that
-    // there is no potential overflow of `i128`?
+    assert!(wallet_balance < i128::MAX as u128, "overflow");
 
     // if the balance is above 0, move everything from the wallet to BEACON
     if wallet_balance > 0 {
@@ -84,8 +85,6 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
             mutate(|state| state.log(error.clone()));
             error
         })?;
-        // S3: Potential loss of user funds if this fails.
-        // We need to somehow ensure that this cannot fail.
         mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, wallet_balance),
             Some((token, wallet_balance as i128)),
@@ -102,9 +101,8 @@ async fn trade(
     // explicit for readability and safety.
     price: Tokens,
     order_type: OrderType,
-    // S4: replace `bool` with readable enum.
-) -> Vec<(u128, bool)> {
-    vec![mutate(|state| {
+) -> OrderExecution {
+    mutate(|state| {
         state
             .trade(
                 order_type,
@@ -115,7 +113,7 @@ async fn trade(
                 ic_cdk::api::time(),
             )
             .expect("trade failed")
-    })]
+    })
 }
 
 #[update]
@@ -123,17 +121,15 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
     let user = caller();
     let fee = read(|state| state.token(token))?.fee;
     let existing_balance = read(|state| state.token_pool_balance(token, user));
+    assert!(existing_balance < i128::MAX as u128, "overflow");
     if existing_balance <= fee {
         return Err("amount smaller than the fee".into());
     }
     let balance = mutate_with_invarant_check(
         |state| state.withdraw_liquidity(user, token),
-        // S3: check that `existing_balance` fits in `i128`.
         Some((token, -(existing_balance as i128))),
     )?;
-    // S3: assert that `balance` is equal to `existing_balance` so that
-    // subtraction below doesn't underflow.
-    let amount = balance - fee;
+    let amount = balance.checked_sub(fee).expect("underflow");
     icrc1::transfer(
         token,
         None,
@@ -148,9 +144,6 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
     .map_err(|err| {
         let error = format!("withdraw transfer failed: {}", err);
         mutate(|state| state.log(error.clone()));
-        // if the withdraw failed, restore liquidity
-        // S3: Potential loss of user funds if this fails.
-        // Need to ensure that this cannot fail.
         if let Err(err) = mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, balance),
             Some((token, balance as i128)),

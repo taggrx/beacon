@@ -55,8 +55,7 @@ fn logs() {
 }
 
 #[derive(Serialize)]
-// S4: typo in `Backend`?
-struct BackenData {
+struct BackendData {
     volume_day: u128,
     trades_day: u64,
     payment_token_locked: u128,
@@ -78,7 +77,7 @@ fn data() {
             .flatten()
             .filter(|order| order.executed + DAY >= now);
 
-        BackenData {
+        BackendData {
             volume_day: day_orders.clone().map(|order| order.volume()).sum(),
             trades_day: day_orders.count() as u64,
             payment_token_locked: state

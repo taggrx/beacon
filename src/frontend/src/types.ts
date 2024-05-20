@@ -33,3 +33,11 @@ export type Order = {
     decimals: number;
     executed: number;
 };
+
+export type OrderExecution =
+    | {
+          ["Filled"]: number;
+      }
+    | {
+          ["FilledAndOrderCreated"]: number;
+      };

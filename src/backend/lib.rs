@@ -70,9 +70,8 @@ where
             if delta == 0 && balance == &0 {
                 balances_after.retain(|(id, _)| id != &token_id.to_string());
             } else {
-                // S3: check that balance fits into `i128`.
-                // and check that subtracted result is not negative.
-                *balance = (*balance as i128 - delta) as u128;
+                assert!(*balance < i128::MAX as u128);
+                *balance = ((*balance as i128).checked_sub(delta).expect("underflow")) as u128;
             }
         }
     }
@@ -147,4 +146,5 @@ fn heap_address() -> (u64, u64) {
 }
 
 use crate::assets::{HttpRequest, HttpResponse};
+use crate::order_book::OrderExecution;
 export_candid!();
