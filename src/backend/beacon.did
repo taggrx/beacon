@@ -18,6 +18,7 @@ type OrderType = variant { Buy; Sell };
 type Result = variant { Ok; Err : text };
 type Result_1 = variant { Ok : nat; Err : text };
 service : () -> {
+  close_all_orders : () -> ();
   close_order : (principal, OrderType, nat, nat, nat64) -> ();
   deposit_liquidity : (principal) -> (Result);
   http_request : (HttpRequest) -> (HttpResponse) query;

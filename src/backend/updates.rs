@@ -38,6 +38,17 @@ fn set_revenue_account(new_address: Principal) {
     })
 }
 
+// Closing of all orders is is needed in order to upgrading the fees or payment token.
+// Additionally, it could help in an emergency situation.
+#[update]
+fn close_all_orders() {
+    mutate(|state| {
+        if state.revenue_account == Some(caller()) {
+            state.close_orders_by_condition(&|_| true, Default::default(), 10000);
+        }
+    })
+}
+
 #[update]
 async fn close_order(
     token: TokenId,

@@ -38,6 +38,8 @@ export type Backend = {
 
     deposit_liquidity: (tokenId: Principal) => Promise<JsonValue>;
 
+    close_all_orders: () => Promise<void>;
+
     close_order: (
         tokenId: Principal,
         order_type: OrderType,
@@ -202,6 +204,17 @@ export const ApiGenerator = (
                     }),
                 ),
             );
+        },
+
+        close_all_orders: async (): Promise<void> => {
+            const arg = IDL.encode([], []);
+            const response = await call_raw(
+                canisterId,
+                "close_all_orders",
+                arg,
+            );
+
+            decode(response);
         },
 
         close_order: async (

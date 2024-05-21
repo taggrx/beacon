@@ -167,6 +167,57 @@ impl State {
         }
     }
 
+    /// Closes orders satisfying the given condition.
+    ///
+    /// The token filter restricts the deletion to the list of tokens if it is not empty.
+    ///
+    /// To guarantee that this never runs out
+    /// of instructions, we need an upper bound on the total number of orders here.
+    pub fn close_orders_by_condition(
+        &mut self,
+        predicate: &dyn Fn(&Order) -> bool,
+        token_filter: HashSet<TokenId>,
+        max_chunk: usize,
+    ) -> usize {
+        let mut closed_orders = 0;
+        self.orders
+            .iter()
+            .filter(|(token, _)| token_filter.is_empty() || token_filter.contains(token))
+            .flat_map(|(token, book)| {
+                book.buyers
+                    .iter()
+                    .chain(book.sellers.iter())
+                    .map(move |order| (*token, order.clone()))
+            })
+            .filter(|(_, order)| predicate(order))
+            .take(max_chunk)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(
+                |(
+                    token,
+                    Order {
+                        order_type,
+                        owner,
+                        amount,
+                        price,
+                        timestamp,
+                        ..
+                    },
+                )| {
+                    if let Err(err) =
+                        self.close_order(owner, token, amount, price, timestamp, order_type)
+                    {
+                        self.log(format!("failed to close an order: {}", err))
+                    } else {
+                        closed_orders += 1
+                    }
+                },
+            );
+
+        closed_orders
+    }
+
     pub fn clean_up(&mut self, now: Timestamp) {
         // Rotate logs
         let mut deleted_logs = 0;
@@ -183,39 +234,12 @@ impl State {
             deleted_archived_orders += length_before.saturating_sub(archive.len());
         }
 
-        // To guarantee that this never runs out of instructions, we need an
-        // upper bound on the total number of orders here.
-        let max_chunk = 100000;
-
         // Close all orders older than 1 months
-        let mut closed_orders = 0;
-        self.orders
-            .iter()
-            .flat_map(|(token, book)| {
-                book.buyers
-                    .iter()
-                    .map(|order| (OrderType::Buy, order))
-                    .chain(book.sellers.iter().map(|order| (OrderType::Sell, order)))
-                    .map(move |(t, order)| (*token, t, order.clone()))
-            })
-            .filter(|(_, _, order)| order.timestamp + ORDER_EXPIRATION_DAYS * DAY < now)
-            .take(max_chunk)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .for_each(|(token, order_type, order)| {
-                if let Err(err) = self.close_order(
-                    order.owner,
-                    token,
-                    order.amount,
-                    order.price,
-                    order.timestamp,
-                    order_type,
-                ) {
-                    self.log(format!("failed to close an expired order: {}", err))
-                } else {
-                    closed_orders += 1
-                }
-            });
+        let closed_orders = self.close_orders_by_condition(
+            &|order| order.timestamp + ORDER_EXPIRATION_DAYS * DAY < now,
+            Default::default(),
+            100000,
+        );
 
         if closed_orders > 0 || deleted_archived_orders > 0 || deleted_logs > 0 {
             self.log(format!(
@@ -251,19 +275,16 @@ impl State {
                 Some(Value::Nat(fee)),
                 Some(Value::Nat(decimals)),
                 logo,
-            ) => {
-                self.add_token(
-                    token,
-                    symbol.clone(),
-                    *fee,
-                    *decimals as u32,
-                    match logo {
-                        Some(Value::Text(hex)) => Some(hex.clone()),
-                        _ => None,
-                    },
-                );
-                Ok(())
-            }
+            ) => self.add_token(
+                token,
+                symbol.clone(),
+                *fee,
+                *decimals as u32,
+                match logo {
+                    Some(Value::Text(hex)) => Some(hex.clone()),
+                    _ => None,
+                },
+            ),
             (symbol, fee, decimals, _) => Err(format!(
                 "one of the required values missing: symbol={:?}, fee={:?}, decimals={:?}",
                 symbol, fee, decimals
@@ -460,22 +481,14 @@ impl State {
         fee: Tokens,
         decimals: u32,
         logo: Option<String>,
-    ) {
+    ) -> Result<(), String> {
         if let Some(current_meta) = self.tokens.get(&id) {
             // If this is a relisting and the fee or the decimals have changed, close all orders first.
             if current_meta.fee != fee || current_meta.decimals != decimals {
-                if let Some(order_book) = self.orders.remove(&id) {
-                    for Order {
-                        order_type,
-                        owner,
-                        amount,
-                        price,
-                        timestamp,
-                        ..
-                    } in order_book.sellers.iter().chain(order_book.buyers.iter())
-                    {
-                        self.close_order(*owner, id, *amount, *price, *timestamp, *order_type)
-                            .expect("couldn't close order")
+                self.close_orders_by_condition(&|_| true, [id].iter().copied().collect(), 100000);
+                if let Some(order_book) = self.orders.get(&id) {
+                    if !order_book.buyers.is_empty() || !order_book.sellers.is_empty() {
+                        return Err("couldn't close all orders".into());
                     }
                 }
             }
@@ -495,6 +508,7 @@ impl State {
         } else {
             self.log(format!("token {} was re-listed", id));
         }
+        Ok(())
     }
 
     pub fn create_order(
@@ -965,13 +979,15 @@ mod tests {
     }
 
     fn list_test_token(state: &mut State, token: TokenId, decimals: u32) {
-        state.add_token(
-            token,
-            "TAGGR".into(),
-            25, // fee
-            decimals,
-            None,
-        );
+        state
+            .add_token(
+                token,
+                "TAGGR".into(),
+                25, // fee
+                decimals,
+                None,
+            )
+            .unwrap();
     }
 
     fn list_payment_token(state: &mut State) {
