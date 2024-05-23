@@ -1,4 +1,5 @@
 use crate::order_book::OrderExecution;
+use ic_cdk::api::time;
 
 use super::*;
 
@@ -113,14 +114,7 @@ async fn trade(
 ) -> OrderExecution {
     mutate(|state| {
         state
-            .trade(
-                order_type,
-                caller(),
-                token,
-                amount,
-                price,
-                ic_cdk::api::time(),
-            )
+            .trade(order_type, caller(), token, amount, price, time())
             .expect("trade failed")
     })
 }
@@ -193,5 +187,8 @@ async fn register_token(token: TokenId) -> Result<(), String> {
     let metadata = icrc1::metadata(token)
         .await
         .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
-    mutate_with_invarant_check(|state| state.list_token(token, metadata), Some((token, 0)))
+    mutate_with_invarant_check(
+        |state| state.list_token(token, metadata, time()),
+        Some((token, 0)),
+    )
 }

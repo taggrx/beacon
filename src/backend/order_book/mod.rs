@@ -128,6 +128,8 @@ pub struct Metadata {
     pub fee: Tokens,
     pub decimals: u32,
     pub logo: Option<String>,
+    #[serde(default)]
+    pub timestamp: Timestamp,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -150,7 +152,14 @@ pub struct State {
 impl State {
     // Count how many orders the user made within hour and
     // throw an error if the number is above `MAX_ORDERS_PER_HOUR`.
-    fn record_activity(&mut self, principal: Principal, now: Timestamp) -> Result<(), String> {
+    fn record_activity(
+        &mut self,
+        token: TokenId,
+        principal: Principal,
+        now: Timestamp,
+    ) -> Result<(), String> {
+        let metadata = self.tokens.get_mut(&token).ok_or("token not listed")?;
+        metadata.timestamp = now;
         match self.order_activity.get_mut(&principal) {
             Some(records) => {
                 records.retain(|timestamp| timestamp + HOUR >= now);
@@ -247,6 +256,31 @@ impl State {
                 deleted_logs, deleted_archived_orders, closed_orders
             ));
         }
+
+        // Delist all inactive tokens.
+        //
+        // Note that some users still might have funds in the frontend
+        // wallet. In this case, the token must be listed again to recover the funds.
+        for token_id in self.tokens.keys().copied().collect::<Vec<_>>() {
+            if
+            // the last order was created more than `2 x ORDER_EXPIRATION_DAYS` ago
+            self
+                .token(token_id)
+                .map(|data| data.timestamp + 2 * ORDER_EXPIRATION_DAYS < now)
+                .unwrap_or(true)
+                // there are no buy or sell orders
+                && self
+                    .orders
+                    .get(&token_id)
+                    .map(|book| book.sellers.is_empty() && book.buyers.is_empty())
+                    .unwrap_or(true)
+                    // there is no liquidity locked
+                    && self.pools.get(&token_id).map(|pool| pool.is_empty()).unwrap_or(true)
+            {
+                self.tokens.remove(&token_id);
+                self.pools.remove(&token_id);
+            }
+        }
     }
 
     /// Returns all users that haev open orders.
@@ -263,6 +297,7 @@ impl State {
         &mut self,
         token: TokenId,
         metadata: BTreeMap<String, Value>,
+        timestamp: Timestamp,
     ) -> Result<(), String> {
         match (
             metadata.get("icrc1:symbol"),
@@ -284,6 +319,7 @@ impl State {
                     Some(Value::Text(hex)) => Some(hex.clone()),
                     _ => None,
                 },
+                timestamp,
             ),
             (symbol, fee, decimals, _) => Err(format!(
                 "one of the required values missing: symbol={:?}, fee={:?}, decimals={:?}",
@@ -481,6 +517,7 @@ impl State {
         fee: Tokens,
         decimals: u32,
         logo: Option<String>,
+        timestamp: Timestamp,
     ) -> Result<(), String> {
         if let Some(current_meta) = self.tokens.get(&id) {
             // If this is a relisting and the fee or the decimals have changed, close all orders first.
@@ -500,6 +537,7 @@ impl State {
                 logo,
                 fee,
                 decimals,
+                timestamp,
             },
         );
         if let std::collections::btree_map::Entry::Vacant(e) = self.pools.entry(id) {
@@ -524,7 +562,7 @@ impl State {
             return Err("limit price is 0".into());
         }
 
-        self.record_activity(user, timestamp)?;
+        self.record_activity(token, user, timestamp)?;
 
         assert_ne!(
             token, PAYMENT_TOKEN_ID,
@@ -986,6 +1024,7 @@ mod tests {
                 25, // fee
                 decimals,
                 None,
+                0,
             )
             .unwrap();
     }
@@ -1000,6 +1039,7 @@ mod tests {
                 fee: DEFAULT_FEE.e8s() as u128,
                 decimals: 8,
                 logo: None,
+                timestamp: 0,
             },
         );
     }
