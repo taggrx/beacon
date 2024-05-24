@@ -39,7 +39,7 @@ fn set_revenue_account(new_address: Principal) {
     })
 }
 
-// Closing of all orders is is needed in order to upgrading the fees or payment token.
+// Closing of all orders is needed in order to upgrading the fees or payment token.
 // Additionally, it could help in an emergency situation.
 #[update]
 fn close_all_orders() {

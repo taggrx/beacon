@@ -176,12 +176,16 @@
             }
 
             .dbcell {
-                box-shadow: 0 0 5px #2a8289;
+                box-shadow: 0 0 8px #2a8289;
+                background: #2a8289;
                 padding: 0.5em;
                 display: flex;
                 flex-direction: column;
                 font-size: x-large;
                 text-align: center;
+            }
+            .dbcell span {
+                color: black;
             }
 
             .dynamic_table {
@@ -255,9 +259,11 @@
                 margin-left: 0.5rem;
             }
 
-            .alert {
-                background: #bb0000;
-                padding: 1em;
+            .beta_alert {
+                border: 1px solid orange;
+                color: orange;
+                padding: 0.3em;
+                font-size: small;
                 border-radius: 10px;
             }
 
@@ -271,9 +277,6 @@
             <div class="text_centered">
                 <h1 class="logo">BEACON</h1>
                 <h3><s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE</h3>
-                <h4 class="alert">
-                    ALPHA VERSION: DON'T USE WITH LARGE AMOUNTS!
-                </h4>
                 LOADING...
             </div>
         </div>
@@ -281,11 +284,14 @@
             <br />
             <br />
             <br />
-            <a href="https://beacondex.link">BeaconDex.link</a> &middot;
             <a
                 href="https://dashboard.internetcomputer.org/canister/cetrr-jaaaa-aaaak-afgxq-cai"
                 >IC dashboard</a
             >
+            &middot;
+            <a href="http://taggr.link/realm/BEACONDEX">TAGGR</a>
+            &middot;
+            <a href="http://github.com/taggrx/beacon">GitHub</a>
             &middot; 2023
         </footer>
     </body>

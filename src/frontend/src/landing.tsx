@@ -50,9 +50,8 @@ export const Landing = ({}) => {
                 <h3>
                     <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
                 </h3>
-                <h4 className="alert">
-                    ALPHA VERSION: DON'T USE WITH LARGE AMOUNTS!
-                </h4>
+                <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">ALPHA</a>{" "}
+                &middot; <span className="beta_alert">BETA</span>
             </div>
             <br />
             <div className="row_container" style={{ justifyContent: "center" }}>
@@ -168,6 +167,12 @@ export const Landing = ({}) => {
                         className="max_width_col"
                         onClick={() => {
                             try {
+                                const consent =
+                                    "Listing on BEACON is fully permissionless. " +
+                                    "There is no third party who could support you in help of any problems. " +
+                                    "Moreover, your token can get delisted if it stops being traded for a long period of time " +
+                                    "(you will be able to relist it again an any time later).";
+                                if (!confirm(consent)) return;
                                 const input =
                                     prompt("Enter the canister id:") || "";
                                 if (!input) return;

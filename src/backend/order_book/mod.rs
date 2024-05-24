@@ -16,7 +16,7 @@ pub type TokenId = Principal;
 pub type E8sPerToken = u128;
 pub type E8s = u128;
 
-pub const TX_FEE: u128 = 1; // 0.XX% per trade side
+pub const TX_FEE: u128 = 20; // 0.XX% per trade side
 
 const ORDER_EXPIRATION_DAYS: u64 = 90;
 
@@ -1088,7 +1088,7 @@ mod tests {
         list_test_token(state, token, 2);
 
         state.add_liquidity(pr(1), PAYMENT_TOKEN_ID, 210);
-        assert_eq!(trading_fee(20000), 2);
+        assert_eq!(trading_fee(20000), 40);
         assert_eq!(
             create_order(state, pr(1), token, 1, 0, 0, OrderType::Buy),
             Err("limit price is 0".into())
@@ -1292,7 +1292,7 @@ mod tests {
         assert!(create_order(state, pr(2), token, 25, 1000000, 0, OrderType::Buy).is_ok());
 
         // buyer has 0.01 ICP left minus fee
-        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &9975);
+        assert_eq!(state.payment_token_pool().get(&pr(2)).unwrap(), &9500);
 
         let buyer_orders = &state.orders.get(&token).unwrap().buyers;
         assert_eq!(
@@ -1361,7 +1361,7 @@ mod tests {
             &(volume - fee_per_side)
         );
         // buyer should have previous amount - volume - fee;
-        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &99930);
+        assert_eq!(state.payment_token_pool().get(&pr(0)).unwrap(), &98600);
         // fee account has 2 fee
         assert_eq!(
             state.payment_token_pool().get(&pr(255)).unwrap(),
