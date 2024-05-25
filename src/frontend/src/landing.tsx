@@ -52,7 +52,7 @@ export const Landing = ({}) => {
                     <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
                 </h3>
                 <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">ALPHA</a>{" "}
-                &middot; <span className="beta_alert">BETA</span>
+                &middot; <span className="beta_label">BETA</span>
             </div>
             <br />
             <div className="row_container" style={{ justifyContent: "center" }}>
