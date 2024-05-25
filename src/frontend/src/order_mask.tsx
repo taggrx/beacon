@@ -8,7 +8,6 @@ import {
     paymentTokenId,
     token,
     tokenBase,
-    tokenFee,
 } from "./common";
 
 export const OrderMask = ({
@@ -98,8 +97,7 @@ export const OrderMask = ({
                             onClick={async () => {
                                 await depositFromWallet(tokenId, callback);
                                 const liquidity =
-                                    window.internalBalances[tokenId][0] -
-                                    tokenFee(tokenId);
+                                    window.internalBalances[tokenId][0];
                                 setAmount(
                                     token(liquidity, tokenDecimals).toString(),
                                 );
