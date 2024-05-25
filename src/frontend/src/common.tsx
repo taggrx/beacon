@@ -136,7 +136,7 @@ export const ConnectButton = ({ large }: { large?: boolean }) => (
             fontSize: large ? "large" : undefined,
             background: "#4aa2a9",
             color: "#111111",
-            minWidth: large ? (bigScreen() ? "30%" : "100%") : undefined,
+            minWidth: large ? (bigScreen() ? "30%" : "50%") : undefined,
         }}
         onClick={() =>
             window.authClient.login({
