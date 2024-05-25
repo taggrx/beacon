@@ -148,7 +148,7 @@ pub struct State {
 }
 
 impl State {
-    // Count how many orders the user made within hour and
+    // Count how many orders the user made within an hour and
     // throw an error if the number is above `MAX_ORDERS_PER_HOUR`.
     fn record_activity(
         &mut self,
@@ -528,7 +528,7 @@ impl State {
                 } else {
                     [id].iter().copied().collect()
                 };
-                self.close_orders_by_condition(&|_| true, token_filter, 100000);
+                self.close_orders_by_condition(&|_| true, token_filter, usize::MAX);
                 if let Some(order_book) = self.orders.get(&id) {
                     if !order_book.buyers.is_empty() || !order_book.sellers.is_empty() {
                         return Err("couldn't close all orders".into());
