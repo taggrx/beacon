@@ -59,7 +59,6 @@ struct BackendData {
     volume_day: u128,
     trades_day: u64,
     payment_token_locked: u128,
-    e8s_per_xdr: u64,
     fee: u128,
     cycle_balance: u64,
     heap_size: u64,
@@ -86,7 +85,6 @@ fn data() {
                 .find_map(|(id, balance)| (&PAYMENT_TOKEN_ID.to_string() == id).then_some(balance))
                 .copied()
                 .unwrap_or_default(),
-            e8s_per_xdr: state.e8s_per_xdr,
             fee: TX_FEE,
             cycle_balance: canister_balance(),
             heap_size: heap_address().1,

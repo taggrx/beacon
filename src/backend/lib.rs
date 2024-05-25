@@ -9,7 +9,6 @@ use candid::Principal;
 use ic_cdk::{api::call::reply_raw, caller, spawn};
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{Tokens as ICP, DEFAULT_FEE};
 use order_book::{Order, OrderType, State, Timestamp, TokenId, Tokens, PAYMENT_TOKEN_ID, TX_FEE};
 
 mod assets;
@@ -19,9 +18,9 @@ mod icrc1;
 mod order_book;
 mod queries;
 mod updates;
-mod xdr_rate;
 
 const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
+pub const LISTING_PRICE_USD: u128 = 100;
 pub const MINUTE: u64 = 60000000000_u64;
 pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
@@ -86,15 +85,6 @@ fn reply<T: serde::Serialize>(data: T) {
 // Starts all repeating tasks.
 fn kickstart() {
     assets::load();
-    let fetch_rate = || {
-        spawn(async {
-            if let Ok(e8s) = xdr_rate::get_xdr_in_e8s().await {
-                mutate(|state| state.e8s_per_xdr = e8s);
-            }
-        })
-    };
-    set_timer(Duration::from_millis(1), fetch_rate);
-    set_timer_interval(Duration::from_secs(24 * 60 * 60), fetch_rate);
     set_timer_interval(Duration::from_secs(24 * 60 * 60), || {
         mutate(|state| state.clean_up(ic_cdk::api::time()));
     });

@@ -1,4 +1,4 @@
-use crate::order_book::OrderExecution;
+use crate::order_book::{Metadata, OrderExecution};
 use ic_cdk::api::time;
 
 use super::*;
@@ -159,11 +159,12 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
 #[update]
 async fn list_token(token: TokenId) -> Result<(), String> {
     let user = caller();
-    let listing_price = read(|state| state.e8s_per_xdr * 100);
 
-    // we subtract the fees twice, because the user moved the funds to BEACON internal account
+    // we subtract the fee twice, because the user moved the funds to BEACON internal account
     // first and now we need to move it to the payment pool again
-    let effective_amount = (ICP::from_e8s(listing_price) - DEFAULT_FEE - DEFAULT_FEE).e8s() as u128;
+    let Metadata { fee, decimals, .. } =
+        read(|state| state.token(PAYMENT_TOKEN_ID).expect("no payment token"));
+    let effective_amount = LISTING_PRICE_USD * 10_u128.pow(decimals) - fee - fee;
 
     if read(|state| state.payment_token_pool().get(&user) < Some(&effective_amount)) {
         return Err("not enough funds for listing".into());

@@ -3,7 +3,7 @@ import { Principal } from "@dfinity/principal";
 import { Order } from "./types";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
-export const PAYMENT_TOKEN_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const PAYMENT_TOKEN_ID = "xevnm-gaaaa-aaaar-qafnq-cai";
 
 export const mainnetMode = process.env.NODE_ENV == "production";
 

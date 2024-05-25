@@ -4,17 +4,16 @@ use std::{
 };
 
 use candid::{CandidType, Principal};
-use ic_ledger_types::{DEFAULT_FEE, MAINNET_LEDGER_CANISTER_ID};
 use serde::{Deserialize, Serialize};
 
 use crate::{icrc1::Value, DAY, HOUR};
 
-pub const PAYMENT_TOKEN_ID: Principal = MAINNET_LEDGER_CANISTER_ID;
+pub const PAYMENT_TOKEN_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 48, 1, 91, 1, 1]);
+
 pub type Timestamp = u64;
 pub type Tokens = u128;
 pub type TokenId = Principal;
-pub type E8sPerToken = u128;
-pub type E8s = u128;
+pub type ParticlesPerToken = u128;
 
 pub const TX_FEE: u128 = 20; // 0.XX% per trade side
 
@@ -53,17 +52,18 @@ pub struct Order {
     // The user who created the order.
     owner: Principal,
     amount: Tokens,
-    price: E8sPerToken,
+    price: ParticlesPerToken,
     // The time when the order was created.
     timestamp: Timestamp,
     // Implicit encoding of optional type: 0 means None - not executed yet.
     pub executed: Timestamp,
     // The number of ICRC-1 decimals in the underlying token.
     decimals: u32,
+    payment_token_fee: Tokens,
 }
 
 impl Order {
-    /// The volume of this trade expressed in E8S ICP.
+    /// The volume of this trade in payment particles.
     pub fn volume(&self) -> Tokens {
         let token_base = 10_u128.pow(self.decimals);
         (self.amount.checked_mul(self.price)).expect("overflow") / token_base
@@ -75,7 +75,7 @@ impl Order {
     fn reserved_liquidity(&self) -> Tokens {
         if self.order_type.buy() {
             let volume = self.volume();
-            volume + trading_fee(volume)
+            volume + trading_fee(self.payment_token_fee, volume)
         } else {
             self.amount
         }
@@ -141,7 +141,6 @@ pub struct State {
     // How many tokens each user owns.
     pools: BTreeMap<TokenId, BTreeMap<Principal, Tokens>>,
     pub tokens: BTreeMap<TokenId, Metadata>,
-    pub e8s_per_xdr: u64,
     pub revenue_account: Option<Principal>,
     pub logs: VecDeque<(u64, String)>,
     event_id: u64,
@@ -353,7 +352,7 @@ impl State {
         user: Principal,
         token: TokenId,
         amount: Tokens,
-        price: E8sPerToken,
+        price: ParticlesPerToken,
         timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
@@ -373,6 +372,7 @@ impl State {
                 amount,
                 timestamp,
                 decimals: 0,
+                payment_token_fee: 0,
                 executed: 0,
             })
             .ok_or("no order found")?
@@ -554,7 +554,7 @@ impl State {
         user: Principal,
         token: TokenId,
         amount: Tokens,
-        price: E8sPerToken,
+        price: ParticlesPerToken,
         timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
@@ -570,6 +570,11 @@ impl State {
         );
 
         let metadata = self.tokens.get(&token).ok_or("token not listed")?;
+        let payment_token_fee = self
+            .tokens
+            .get(&PAYMENT_TOKEN_ID)
+            .ok_or("payment token not listed")?
+            .fee;
         assert_ne!(
             token, PAYMENT_TOKEN_ID,
             "no orders for payment tokens are possible"
@@ -581,6 +586,7 @@ impl State {
             amount,
             price,
             decimals: metadata.decimals,
+            payment_token_fee,
             timestamp,
             executed: 0,
         };
@@ -601,7 +607,7 @@ impl State {
         }
 
         let volume = order.volume();
-        let fee = trading_fee(volume);
+        let fee = trading_fee(order.payment_token_fee, volume);
         if fee * 10 > volume {
             return Err("the order is too small".into());
         }
@@ -629,7 +635,7 @@ impl State {
         user: Principal,
         token: TokenId,
         amount: u128,
-        price: E8sPerToken,
+        price: ParticlesPerToken,
         now: Timestamp,
     ) -> Result<OrderExecution, String> {
         // match existing orders
@@ -664,7 +670,7 @@ impl State {
         trader: Principal,
         token: TokenId,
         mut amount: u128,
-        limit: Option<E8sPerToken>,
+        limit: Option<ParticlesPerToken>,
         time: Timestamp,
     ) -> Result<u128, String> {
         let book = &mut match self.orders.get_mut(&token) {
@@ -704,7 +710,7 @@ impl State {
                 remaining_order.amount = order.amount - amount;
 
                 let volume = remaining_order.volume();
-                let fee = trading_fee(volume);
+                let fee = trading_fee(remaining_order.payment_token_fee, volume);
                 assert!(volume > fee, "dust orders are not supported");
 
                 let new_reserved_liquidity = remaining_order.reserved_liquidity();
@@ -915,7 +921,7 @@ fn adjust_pools(
         .ok_or("no payment pool found")?;
 
     let volume = order.volume();
-    let fee = trading_fee(volume);
+    let fee = trading_fee(order.payment_token_fee, volume);
 
     // We only need to subtract payment liquidity if we're executing a buying trade, because
     // the liquidity for the sell order has already been reserved at order creation.
@@ -935,14 +941,12 @@ fn adjust_pools(
     Ok(())
 }
 
-fn trading_fee(volume: E8s) -> E8s {
-    (volume * TX_FEE / DEFAULT_FEE.e8s() as E8s).max(1)
+fn trading_fee(fee: Tokens, volume: Tokens) -> Tokens {
+    (volume * TX_FEE / fee as u128).max(1)
 }
 
 #[cfg(test)]
 mod tests {
-
-    use ic_ledger_types::DEFAULT_FEE;
 
     use crate::{mutate, read, unsafe_mutate};
 
@@ -970,7 +974,7 @@ mod tests {
         user: Principal,
         token: TokenId,
         amount: Tokens,
-        price: E8sPerToken,
+        price: ParticlesPerToken,
         timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
@@ -987,7 +991,7 @@ mod tests {
         user: Principal,
         token: TokenId,
         amount: Tokens,
-        price: E8sPerToken,
+        price: ParticlesPerToken,
         timestamp: Timestamp,
         order_type: OrderType,
     ) -> Result<(), String> {
@@ -1005,7 +1009,7 @@ mod tests {
         trader: Principal,
         token: TokenId,
         amount: u128,
-        limit: Option<E8sPerToken>,
+        limit: Option<ParticlesPerToken>,
         time: Timestamp,
     ) -> Result<u128, String> {
         let fum = state.funds_under_management();
@@ -1035,8 +1039,8 @@ mod tests {
         state.tokens.insert(
             PAYMENT_TOKEN_ID,
             Metadata {
-                symbol: "ICP".into(),
-                fee: DEFAULT_FEE.e8s() as u128,
+                symbol: "USD".into(),
+                fee: 10000,
                 decimals: 8,
                 logo: None,
                 timestamp: 0,
@@ -1054,6 +1058,7 @@ mod tests {
             decimals: 6,
             timestamp: 111,
             executed: 0,
+            payment_token_fee: 10000,
         };
         let mut o2 = Order {
             order_type: OrderType::Buy,
@@ -1063,6 +1068,7 @@ mod tests {
             decimals: 6,
             timestamp: 111,
             executed: 0,
+            payment_token_fee: 10000,
         };
 
         assert_eq!(o1.cmp(&o1), Ordering::Equal);
@@ -1088,7 +1094,7 @@ mod tests {
         list_test_token(state, token, 2);
 
         state.add_liquidity(pr(1), PAYMENT_TOKEN_ID, 210);
-        assert_eq!(trading_fee(20000), 40);
+        assert_eq!(trading_fee(10000, 20000), 40);
         assert_eq!(
             create_order(state, pr(1), token, 1, 0, 0, OrderType::Buy),
             Err("limit price is 0".into())
@@ -1164,7 +1170,7 @@ mod tests {
                 .copied()
                 .unwrap()
                 .0,
-            8 * 100000 - volume - trading_fee(volume)
+            8 * 100000 - volume - trading_fee(10000, volume)
         );
 
         assert_eq!(
@@ -1182,7 +1188,11 @@ mod tests {
                 .copied()
                 .unwrap()
                 .0,
-            8 * 100000 - volume - trading_fee(volume) - volume2 - trading_fee(volume2)
+            8 * 100000
+                - volume
+                - trading_fee(10000, volume)
+                - volume2
+                - trading_fee(10000, volume2)
         );
         assert_eq!(
             close_order(state, pr(0), token, 3, 10000000, 0, OrderType::Buy),
@@ -1249,7 +1259,7 @@ mod tests {
         );
         assert_eq!(
             state.withdraw_liquidity(pr(0), PAYMENT_TOKEN_ID),
-            Ok((ic_ledger_types::Tokens::from_e8s(one_icp as u64)).e8s() as u128)
+            Ok(100000000)
         );
     }
 
@@ -1355,7 +1365,7 @@ mod tests {
         assert_eq!(state.payment_token_pool().len(), 5);
         // seller has expected amount of ICP: 5 * 0.1 ICP - fee
         let volume = 500000;
-        let fee_per_side = trading_fee(volume);
+        let fee_per_side = trading_fee(10000, volume);
         assert_eq!(
             state.payment_token_pool().get(&seller).unwrap(),
             &(volume - fee_per_side)
@@ -1412,7 +1422,7 @@ mod tests {
 
         // executed orders: 25 @ 0.1, 16 @ 0.03, 7 @ 0.05
         let (v1, v2, v3) = (25 * 10000, 16 * 30000, 7 * 100000);
-        let fee = trading_fee(v1) + trading_fee(v2) + trading_fee(v3);
+        let fee = trading_fee(10000, v1) + trading_fee(10000, v2) + trading_fee(10000, v3);
         assert_eq!(
             state.payment_token_pool().get(&seller).unwrap(),
             &(v1 + v2 + v3 - fee)
@@ -1556,19 +1566,19 @@ mod tests {
         let (v2, v1, v3) = (16 * 30000, 7 * 50000, 25 * 1000000);
         assert_eq!(
             state.payment_token_pool().get(&pr(0)).unwrap(),
-            &(v1 - trading_fee(v1))
+            &(v1 - trading_fee(10000, v1))
         );
         assert_eq!(
             state.payment_token_pool().get(&pr(1)).unwrap(),
-            &(v2 - trading_fee(v2))
+            &(v2 - trading_fee(10000, v2))
         );
         assert_eq!(
             state.payment_token_pool().get(&pr(2)).unwrap(),
-            &(v3 - trading_fee(v3))
+            &(v3 - trading_fee(10000, v3))
         );
 
         // executed orders: 16 @ 0.03, 7 @ 0.05, 25 @ 1
-        let fee = trading_fee(v1) + trading_fee(v2) + trading_fee(v3);
+        let fee = trading_fee(10000, v1) + trading_fee(10000, v2) + trading_fee(10000, v3);
         assert_eq!(
             state.payment_token_pool().get(&pr(255)).unwrap(),
             &(2 * fee)
@@ -1685,11 +1695,11 @@ mod tests {
         let (v2, v1) = (16 * 30000, 7 * 50000);
         assert_eq!(
             state.payment_token_pool().get(&pr(0)).unwrap(),
-            &(v1 - trading_fee(v1))
+            &(v1 - trading_fee(10000, v1))
         );
         assert_eq!(
             state.payment_token_pool().get(&pr(1)).unwrap(),
-            &(v2 - trading_fee(v2))
+            &(v2 - trading_fee(10000, v2))
         );
         assert_eq!(state.payment_token_pool().get(&pr(2)), None);
     }
