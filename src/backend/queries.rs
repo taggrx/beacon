@@ -64,6 +64,7 @@ struct BackendData {
     heap_size: u64,
     tokens_listed: usize,
     active_traders: usize,
+    listing_price_usd: u128,
 }
 
 #[export_name = "canister_query data"]
@@ -91,6 +92,7 @@ fn data() {
             // We subtract one, because the list of tokens always contains the payment token
             tokens_listed: state.tokens.len() - 1,
             active_traders: state.traders(),
+            listing_price_usd: LISTING_PRICE_USD,
         }
     }))
 }

@@ -17,7 +17,7 @@ const parseHash = (): string[] => {
 };
 
 type Data = {
-    e8s_per_xdr: bigint;
+    listing_price_usd: number;
     fee: bigint;
     volume_day: bigint;
     trades_day: number;

@@ -128,7 +128,6 @@ pub struct Metadata {
     pub fee: Tokens,
     pub decimals: u32,
     pub logo: Option<String>,
-    #[serde(default)]
     pub timestamp: Timestamp,
 }
 
@@ -144,7 +143,6 @@ pub struct State {
     pub revenue_account: Option<Principal>,
     pub logs: VecDeque<(u64, String)>,
     event_id: u64,
-    #[serde(default)]
     order_activity: HashMap<Principal, HashSet<Timestamp>>,
 }
 
@@ -942,7 +940,7 @@ fn adjust_pools(
 }
 
 fn trading_fee(fee: Tokens, volume: Tokens) -> Tokens {
-    (volume * TX_FEE / fee as u128).max(1)
+    (volume * TX_FEE / fee).max(1)
 }
 
 #[cfg(test)]

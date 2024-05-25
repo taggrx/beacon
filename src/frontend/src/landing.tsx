@@ -81,12 +81,11 @@ export const Landing = ({}) => {
                 <div className="dbcell">
                     <span>24H VOLUME</span>
                     <code>
-                        {token(volume_day, paymentToken.decimals, false)}{" "}
-                        {paymentToken.symbol}
+                        ${token(volume_day, paymentToken.decimals, false)}{" "}
                     </code>
                 </div>
                 <div className="dbcell">
-                    <span>FEES</span>
+                    <span>FEE</span>
                     <code>{Number(fee) / 100}%</code>
                 </div>
                 <div className="dbcell">
@@ -169,7 +168,7 @@ export const Landing = ({}) => {
                             try {
                                 const consent =
                                     "Listing on BEACON is fully permissionless. " +
-                                    "There is no third party who could support you in help of any problems. " +
+                                    "There is no third party who can support you in help of any problems. " +
                                     "Moreover, your token can get delisted if it stops being traded for a long period of time " +
                                     "(you will be able to relist it again an any time later).";
                                 if (!confirm(consent)) return;
