@@ -1,9 +1,10 @@
 import { Principal } from "@dfinity/principal";
 import {
     ConnectButton,
-    PAYMENT_TOKEN_ID,
     TokenLogo,
     bigScreen,
+    paymentTokenData,
+    paymentTokenId,
     token,
 } from "./common";
 import * as React from "react";
@@ -25,7 +26,7 @@ export const Landing = ({}) => {
     React.useEffect(() => {
         loadData();
     }, []);
-    const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
+    const paymentToken = paymentTokenData();
     const {
         payment_token_locked,
         trades_day,
@@ -125,7 +126,7 @@ export const Landing = ({}) => {
             >
                 {tokenList(
                     Object.entries(window.tokenData).filter(
-                        (entry) => entry[0] != PAYMENT_TOKEN_ID,
+                        (entry) => entry[0] != paymentTokenId(),
                     ),
                 ).map(([id, { symbol, logo }]) => (
                     <div

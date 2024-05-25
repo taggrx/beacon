@@ -3,8 +3,9 @@ import * as React from "react";
 import {
     Button,
     CopyToClipboard,
-    PAYMENT_TOKEN_ID,
     depositFromWallet,
+    paymentTokenData,
+    paymentTokenId,
     token,
     tokenBase,
 } from "./common";
@@ -12,9 +13,9 @@ import {
 export const Listing = ({ tokenId }: { tokenId: string }) => {
     const [status, setStatus] = React.useState("");
     const amount = BigInt(
-        window.data.listing_price_usd * tokenBase(PAYMENT_TOKEN_ID),
+        window.data.listing_price_usd * tokenBase(paymentTokenId()),
     );
-    const { symbol, decimals } = window.tokenData[PAYMENT_TOKEN_ID];
+    const { symbol, decimals } = paymentTokenData();
     const price = (
         <code>
             {token(amount, decimals)} {symbol}
@@ -52,7 +53,7 @@ export const Listing = ({ tokenId }: { tokenId: string }) => {
                             label="LIST TOKEN"
                             onClick={async () => {
                                 await depositFromWallet(
-                                    PAYMENT_TOKEN_ID,
+                                    paymentTokenId(),
                                     setStatus,
                                 );
 

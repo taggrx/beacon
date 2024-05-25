@@ -65,6 +65,7 @@ struct BackendData {
     tokens_listed: usize,
     active_traders: usize,
     listing_price_usd: u128,
+    payment_token_id: Principal,
 }
 
 #[export_name = "canister_query data"]
@@ -93,6 +94,7 @@ fn data() {
             tokens_listed: state.tokens.len() - 1,
             active_traders: state.traders(),
             listing_price_usd: LISTING_PRICE_USD,
+            payment_token_id: PAYMENT_TOKEN_ID,
         }
     }))
 }
