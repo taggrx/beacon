@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{icrc1::Value, DAY, HOUR};
 
-// ckUSDC (xevnm-gaaaa-aaaar-qafnq-cai)
+// bTAL (uic53-naaaa-aaaar-qafhq-cai)
 #[cfg(not(feature = "dev"))]
-pub const PAYMENT_TOKEN_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 48, 1, 91, 1, 1]);
+pub const PAYMENT_TOKEN_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 48, 1, 79, 1, 1]);
 #[cfg(feature = "dev")]
 pub const PAYMENT_TOKEN_ID: Principal =
     Principal::from_slice(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0x01]);
