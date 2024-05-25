@@ -91,6 +91,14 @@ fn kickstart() {
     set_timer_interval(Duration::from_secs(60 * 60), || {
         mutate(heap_to_stable);
     });
+    // weekly payment token metadata updates
+    set_timer(Duration::from_secs(24 * 60 * 60 * 7), || {
+        spawn(async {
+            register_token(PAYMENT_TOKEN_ID)
+                .await
+                .expect("couldn't update payment token metadata");
+        })
+    });
 }
 
 fn stable_to_heap_core() {
@@ -133,6 +141,16 @@ fn heap_address() -> (u64, u64) {
     stable64_read(8, &mut len_bytes);
     let len = u64::from_be_bytes(len_bytes);
     (offset, len)
+}
+
+pub async fn register_token(token: TokenId) -> Result<(), String> {
+    let metadata = icrc1::metadata(token)
+        .await
+        .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
+    mutate_with_invarant_check(
+        |state| state.list_token(token, metadata, ic_cdk::api::time()),
+        Some((token, 0)),
+    )
 }
 
 use crate::assets::{HttpRequest, HttpResponse};

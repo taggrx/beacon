@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{icrc1::Value, DAY, HOUR};
 
+// ckUSDC (xevnm-gaaaa-aaaar-qafnq-cai)
 pub const PAYMENT_TOKEN_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 48, 1, 91, 1, 1]);
 
 pub type Timestamp = u64;
@@ -240,7 +241,7 @@ impl State {
             deleted_archived_orders += length_before.saturating_sub(archive.len());
         }
 
-        // Close all orders older than 1 months
+        // Close all orders older than `ORDER_EXPIRATION_DAYS`
         let closed_orders = self.close_orders_by_condition(
             &|order| order.timestamp + ORDER_EXPIRATION_DAYS * DAY < now,
             Default::default(),
@@ -520,7 +521,14 @@ impl State {
         if let Some(current_meta) = self.tokens.get(&id) {
             // If this is a relisting and the fee or the decimals have changed, close all orders first.
             if current_meta.fee != fee || current_meta.decimals != decimals {
-                self.close_orders_by_condition(&|_| true, [id].iter().copied().collect(), 100000);
+                // If the fee or decimals of a token has changed we close only orders or that token
+                // if it is not a payment token, otherwise, we close all orders.
+                let token_filter = if id == PAYMENT_TOKEN_ID {
+                    Default::default()
+                } else {
+                    [id].iter().copied().collect()
+                };
+                self.close_orders_by_condition(&|_| true, token_filter, 100000);
                 if let Some(order_book) = self.orders.get(&id) {
                     if !order_book.buyers.is_empty() || !order_book.sellers.is_empty() {
                         return Err("couldn't close all orders".into());

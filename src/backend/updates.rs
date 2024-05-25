@@ -181,13 +181,3 @@ async fn list_token(token: TokenId) -> Result<(), String> {
 
     Ok(())
 }
-
-async fn register_token(token: TokenId) -> Result<(), String> {
-    let metadata = icrc1::metadata(token)
-        .await
-        .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
-    mutate_with_invarant_check(
-        |state| state.list_token(token, metadata, time()),
-        Some((token, 0)),
-    )
-}
