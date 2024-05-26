@@ -48,7 +48,7 @@ export const OrderMask = ({
             return;
         }
         setParsedPrice(parsedPrice);
-    }, [price, amount]);
+    }, [price, amount, tokenId]);
 
     React.useEffect(() => {
         setStatus(

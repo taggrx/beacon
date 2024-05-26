@@ -20,7 +20,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     };
     React.useEffect(() => {
         if (tokenId) loadData(tokenId);
-    }, []);
+    }, [tokenId]);
 
     const metadata = window.tokenData[tokenId];
 

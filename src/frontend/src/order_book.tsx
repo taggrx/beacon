@@ -34,7 +34,7 @@ export const OrderBook = ({
 
     React.useEffect(() => {
         loadData();
-    }, [heartbeat]);
+    }, [heartbeat, tokenId]);
 
     const maxOrderSize = buyOrders
         .concat(sellOrders)
