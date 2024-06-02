@@ -618,7 +618,7 @@ impl State {
 
         let volume = order.volume();
         let fee = trading_fee(order.payment_token_fee, volume);
-        if fee * 10 > volume {
+        if dust(fee, volume) {
             return Err("the order is too small".into());
         }
 
@@ -719,25 +719,31 @@ impl State {
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
 
+                let mut new_reserved_liquidity = 0;
+
                 let volume = remaining_order.volume();
                 let fee = trading_fee(remaining_order.payment_token_fee, volume);
-                assert!(volume > fee, "dust orders are not supported");
+                // we do not create dust orders
+                if !dust(fee, volume) {
+                    new_reserved_liquidity = remaining_order.reserved_liquidity();
+                    assert!(orders.insert(remaining_order), "order overwritten");
+                }
 
-                let new_reserved_liquidity = remaining_order.reserved_liquidity();
-
-                assert!(orders.insert(remaining_order), "order overwritten");
                 order.amount = amount;
                 let freed_liquidity = prev_reserved_liquidity
                     .checked_sub(new_reserved_liquidity + order.reserved_liquidity())
                     .expect("underflow");
                 if freed_liquidity > 0 {
-                    // Freeing of liquidity on an order split can only happen for sell orders,
-                    // because the reserved ICP liquidity is computed using integer division.
-                    assert!(trade_type.sell());
-                    assert!(order.order_type.buy());
+                    let id = if order.order_type.buy() {
+                        assert!(trade_type.sell());
+                        PAYMENT_TOKEN_ID
+                    } else {
+                        assert!(trade_type.buy());
+                        token
+                    };
                     if let Some(liquidity) = self
                         .pools
-                        .get_mut(&PAYMENT_TOKEN_ID)
+                        .get_mut(&id)
                         .and_then(|pool| pool.get_mut(&order.owner))
                     {
                         *liquidity += freed_liquidity;
@@ -953,6 +959,10 @@ fn adjust_pools(
 
 fn trading_fee(fee: Tokens, volume: Tokens) -> Tokens {
     (volume * TX_FEE / fee).max(1)
+}
+
+fn dust(fee: Tokens, volume: Tokens) -> bool {
+    volume < 10 * fee
 }
 
 #[cfg(test)]
