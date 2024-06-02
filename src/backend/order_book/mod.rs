@@ -585,10 +585,6 @@ impl State {
             .get(&PAYMENT_TOKEN_ID)
             .ok_or("payment token not listed")?
             .fee;
-        assert_ne!(
-            token, PAYMENT_TOKEN_ID,
-            "no orders for payment tokens are possible"
-        );
 
         let order = Order {
             order_type,
@@ -718,6 +714,7 @@ impl State {
                 // partial order fill - create a new one for left overs
                 let mut remaining_order = order.clone();
                 remaining_order.amount = order.amount - amount;
+                remaining_order.timestamp = time;
 
                 let mut new_reserved_liquidity = 0;
 
