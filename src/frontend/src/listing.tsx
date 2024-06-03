@@ -3,20 +3,30 @@ import * as React from "react";
 import {
     Button,
     CopyToClipboard,
-    PAYMENT_TOKEN_ID,
     depositFromWallet,
+    paymentTokenData,
+    paymentTokenId,
     token,
+    tokenBase,
 } from "./common";
 
 export const Listing = ({ tokenId }: { tokenId: string }) => {
     const [status, setStatus] = React.useState("");
-    const amount = BigInt(Number(window.data.e8s_per_xdr) * 100);
-    const price = <code>{token(amount, 8)} ICP</code>;
+    const amount = BigInt(
+        window.data.listing_price_usd * tokenBase(paymentTokenId()),
+    );
+    const { symbol, decimals } = paymentTokenData();
+    const price = (
+        <code>
+            {token(amount, decimals)} {symbol}
+        </code>
+    );
     return (
         <>
             <h1>
-                Token <code>{tokenId}</code> is not listed yet!
+                <code>{tokenId}</code>
             </h1>
+            <p>This token is not listed yet!</p>
             <p>Listing on BEACON:</p>
             <ul>
                 <li>works only with ICRC1 tokens,</li>
@@ -38,29 +48,31 @@ export const Listing = ({ tokenId }: { tokenId: string }) => {
 
                     {status && <p>{status}</p>}
 
-                    <Button
-                        label="LIST TOKEN"
-                        onClick={async () => {
-                            await depositFromWallet(
-                                PAYMENT_TOKEN_ID,
-                                setStatus,
-                            );
+                    {!status && (
+                        <Button
+                            label="LIST TOKEN"
+                            onClick={async () => {
+                                await depositFromWallet(
+                                    paymentTokenId(),
+                                    setStatus,
+                                );
 
-                            setStatus("LISTING THE TOKEN...");
-                            const result: any = await window.api.list_token(
-                                Principal.from(tokenId),
-                            );
-                            if (!result) {
-                                setStatus("🔴 Call failed.");
-                                return;
-                            }
-                            if ("Err" in result) {
-                                setStatus(`🔴 Error: ${result.Err}`);
-                                return;
-                            }
-                            location.href = `#/${tokenId}`;
-                        }}
-                    />
+                                setStatus("LISTING THE TOKEN...");
+                                const result: any = await window.api.list_token(
+                                    Principal.from(tokenId),
+                                );
+                                if (!result) {
+                                    setStatus("🔴 Call failed.");
+                                    return;
+                                }
+                                if ("Err" in result) {
+                                    setStatus(`🔴 Error: ${result.Err}`);
+                                    return;
+                                }
+                                setStatus(`DONE!`);
+                            }}
+                        />
+                    )}
                 </>
             )}
             {!window.principalId && (

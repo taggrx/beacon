@@ -1,9 +1,10 @@
 import { Principal } from "@dfinity/principal";
 import {
     ConnectButton,
-    PAYMENT_TOKEN_ID,
     TokenLogo,
     bigScreen,
+    paymentTokenData,
+    paymentTokenId,
     token,
 } from "./common";
 import * as React from "react";
@@ -25,7 +26,7 @@ export const Landing = ({}) => {
     React.useEffect(() => {
         loadData();
     }, []);
-    const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
+    const paymentToken = paymentTokenData();
     const {
         payment_token_locked,
         trades_day,
@@ -50,9 +51,8 @@ export const Landing = ({}) => {
                 <h3>
                     <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
                 </h3>
-                <h4 className="alert">
-                    ALPHA VERSION: DON'T USE WITH LARGE AMOUNTS!
-                </h4>
+                <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">ALPHA</a>{" "}
+                &middot; <span className="beta_label">BETA</span>
             </div>
             <br />
             <div className="row_container" style={{ justifyContent: "center" }}>
@@ -82,12 +82,11 @@ export const Landing = ({}) => {
                 <div className="dbcell">
                     <span>24H VOLUME</span>
                     <code>
-                        {token(volume_day, paymentToken.decimals, false)}{" "}
-                        {paymentToken.symbol}
+                        ${token(volume_day, paymentToken.decimals, false)}{" "}
                     </code>
                 </div>
                 <div className="dbcell">
-                    <span>FEES</span>
+                    <span>FEE</span>
                     <code>{Number(fee) / 100}%</code>
                 </div>
                 <div className="dbcell">
@@ -127,7 +126,7 @@ export const Landing = ({}) => {
             >
                 {tokenList(
                     Object.entries(window.tokenData).filter(
-                        (entry) => entry[0] != PAYMENT_TOKEN_ID,
+                        (entry) => entry[0] != paymentTokenId(),
                     ),
                 ).map(([id, { symbol, logo }]) => (
                     <div
@@ -168,6 +167,12 @@ export const Landing = ({}) => {
                         className="max_width_col"
                         onClick={() => {
                             try {
+                                const consent =
+                                    "Listing on BEACON is fully permissionless. " +
+                                    "There is no third party who can support you in help of any problems. " +
+                                    "Moreover, your token can get delisted if it stops being traded for a long period of time " +
+                                    "(you will be able to relist it again an any time later).";
+                                if (!confirm(consent)) return;
                                 const input =
                                     prompt("Enter the canister id:") || "";
                                 if (!input) return;

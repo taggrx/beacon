@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
-import { PAYMENT_TOKEN_ID, orderId, token, timeAgo, TokenLogo } from "./common";
+import { orderId, token, timeAgo, TokenLogo, paymentTokenData } from "./common";
 import { Listing } from "./listing";
 import { OrderMask } from "./order_mask";
 import { OrderBook } from "./order_book";
@@ -20,7 +20,7 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
     };
     React.useEffect(() => {
         if (tokenId) loadData(tokenId);
-    }, []);
+    }, [tokenId]);
 
     const metadata = window.tokenData[tokenId];
 
@@ -35,7 +35,6 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         loadData(tokenId);
     };
     const tokenData = window.tokenData[tokenId];
-    const paymentTokenDataData = window.tokenData[PAYMENT_TOKEN_ID];
     return (
         <>
             <div className="row_container vcentered x_large_text bottom_spaced">
@@ -58,9 +57,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                     <code>
                         {token(
                             executedOrders[0].price,
-                            paymentTokenDataData.decimals,
+                            paymentTokenData().decimals,
                         )}{" "}
-                        {paymentTokenDataData.symbol}
+                        {paymentTokenData().symbol}
                     </code>
                 )}
             </div>
@@ -137,10 +136,10 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                         <code>
                                             {token(
                                                 order.price,
-                                                paymentTokenDataData.decimals,
+                                                paymentTokenData().decimals,
                                             )}
                                         </code>{" "}
-                                        {paymentTokenDataData.symbol}
+                                        {paymentTokenData().symbol}
                                     </td>
                                 </tr>
                             ))}
@@ -201,7 +200,7 @@ const Chart = ({ originalOrders }: { originalOrders: Order[] }) => {
                 ctx.fillText(
                     token(
                         orders[i].price,
-                        window.tokenData[PAYMENT_TOKEN_ID].decimals,
+                        paymentTokenData().decimals,
                     ).toString(),
                     x - 15,
                     Math.max(y + 20, 0),

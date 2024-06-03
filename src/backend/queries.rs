@@ -55,17 +55,17 @@ fn logs() {
 }
 
 #[derive(Serialize)]
-// S4: typo in `Backend`?
-struct BackenData {
+struct BackendData {
     volume_day: u128,
     trades_day: u64,
     payment_token_locked: u128,
-    e8s_per_xdr: u64,
     fee: u128,
     cycle_balance: u64,
     heap_size: u64,
     tokens_listed: usize,
     active_traders: usize,
+    listing_price_usd: u128,
+    payment_token_id: Principal,
 }
 
 #[export_name = "canister_query data"]
@@ -78,7 +78,7 @@ fn data() {
             .flatten()
             .filter(|order| order.executed + DAY >= now);
 
-        BackenData {
+        BackendData {
             volume_day: day_orders.clone().map(|order| order.volume()).sum(),
             trades_day: day_orders.count() as u64,
             payment_token_locked: state
@@ -87,13 +87,14 @@ fn data() {
                 .find_map(|(id, balance)| (&PAYMENT_TOKEN_ID.to_string() == id).then_some(balance))
                 .copied()
                 .unwrap_or_default(),
-            e8s_per_xdr: state.e8s_per_xdr,
             fee: TX_FEE,
             cycle_balance: canister_balance(),
             heap_size: heap_address().1,
             // We subtract one, because the list of tokens always contains the payment token
             tokens_listed: state.tokens.len() - 1,
             active_traders: state.traders(),
+            listing_price_usd: LISTING_PRICE_USD,
+            payment_token_id: PAYMENT_TOKEN_ID,
         }
     }))
 }

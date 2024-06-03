@@ -1,13 +1,13 @@
 import * as React from "react";
-import { OrderType } from "./types";
+import { OrderExecution, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
 import {
     Button,
-    PAYMENT_TOKEN_ID,
     depositFromWallet,
+    paymentTokenData,
+    paymentTokenId,
     token,
     tokenBase,
-    tokenFee,
 } from "./common";
 
 export const OrderMask = ({
@@ -32,7 +32,7 @@ export const OrderMask = ({
 
     const icrcToken = window.tokenData[tokenId];
     const tokenDecimals = icrcToken.decimals;
-    const paymentToken = window.tokenData[PAYMENT_TOKEN_ID];
+    const paymentToken = paymentTokenData();
     const base = tokenBase(tokenId);
 
     React.useEffect(() => {
@@ -48,7 +48,7 @@ export const OrderMask = ({
             return;
         }
         setParsedPrice(parsedPrice);
-    }, [price, amount]);
+    }, [price, amount, tokenId]);
 
     React.useEffect(() => {
         setStatus(
@@ -97,8 +97,7 @@ export const OrderMask = ({
                             onClick={async () => {
                                 await depositFromWallet(tokenId, callback);
                                 const liquidity =
-                                    window.internalBalances[tokenId][0] -
-                                    tokenFee(tokenId);
+                                    window.internalBalances[tokenId][0];
                                 setAmount(
                                     token(liquidity, tokenDecimals).toString(),
                                 );
@@ -176,25 +175,28 @@ const executeOrder = async (
     orderType: OrderType,
     statusCallback: (arg: string) => void,
 ) => {
-    const paymentTokenId =
-        orderType == OrderType.Buy ? PAYMENT_TOKEN_ID : tradedTokenId;
-    await depositFromWallet(paymentTokenId, statusCallback);
+    await depositFromWallet(
+        orderType == OrderType.Buy ? paymentTokenId() : tradedTokenId,
+        statusCallback,
+    );
     statusCallback("EXECUTING THE TRADE...");
     try {
-        let [[filled, orderCreated]]: any = await window.api.trade(
+        let result = (await window.api.trade(
             Principal.from(tradedTokenId),
             amount,
             price,
             orderType,
-        );
+        )) as unknown as OrderExecution;
         const { decimals, symbol } = window.tokenData[tradedTokenId];
+        const filled = Object.values(result)[0];
         let status =
             filled > 0
                 ? `ORDER FILLED FOR ${token(filled, decimals)} ${symbol}. `
                 : "";
-        status += orderCreated
-            ? "AN ORDER WAS CREATED."
-            : "NO ORDER WAS CREATED.";
+        status +=
+            "FilledAndOrderCreated" in result
+                ? "AN ORDER WAS CREATED."
+                : "NO ORDER WAS CREATED.";
         statusCallback(status);
     } catch (error) {
         console.debug(error);

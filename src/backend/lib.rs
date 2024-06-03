@@ -9,7 +9,6 @@ use candid::Principal;
 use ic_cdk::{api::call::reply_raw, caller, spawn};
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{Tokens as ICP, DEFAULT_FEE};
 use order_book::{Order, OrderType, State, Timestamp, TokenId, Tokens, PAYMENT_TOKEN_ID, TX_FEE};
 
 mod assets;
@@ -19,9 +18,9 @@ mod icrc1;
 mod order_book;
 mod queries;
 mod updates;
-mod xdr_rate;
 
 const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
+pub const LISTING_PRICE_USD: u128 = 100;
 pub const MINUTE: u64 = 60000000000_u64;
 pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
@@ -70,8 +69,8 @@ where
             if delta == 0 && balance == &0 {
                 balances_after.retain(|(id, _)| id != &token_id.to_string());
             } else {
-                // S3: check that balance fits into `i128`.
-                // and check that subtracted result is not negative.
+                assert!(*balance < i128::MAX as u128);
+                assert!(*balance >= delta.unsigned_abs());
                 *balance = (*balance as i128 - delta) as u128;
             }
         }
@@ -87,20 +86,19 @@ fn reply<T: serde::Serialize>(data: T) {
 // Starts all repeating tasks.
 fn kickstart() {
     assets::load();
-    let fetch_rate = || {
-        spawn(async {
-            if let Ok(e8s) = xdr_rate::get_xdr_in_e8s().await {
-                mutate(|state| state.e8s_per_xdr = e8s);
-            }
-        })
-    };
-    set_timer(Duration::from_millis(1), fetch_rate);
-    set_timer_interval(Duration::from_secs(24 * 60 * 60), fetch_rate);
     set_timer_interval(Duration::from_secs(24 * 60 * 60), || {
         mutate(|state| state.clean_up(ic_cdk::api::time()));
     });
     set_timer_interval(Duration::from_secs(60 * 60), || {
         mutate(heap_to_stable);
+    });
+    // weekly payment token metadata updates
+    set_timer(Duration::from_secs(24 * 60 * 60 * 7), || {
+        spawn(async {
+            register_token(PAYMENT_TOKEN_ID)
+                .await
+                .expect("couldn't update payment token metadata");
+        })
     });
 }
 
@@ -146,5 +144,16 @@ fn heap_address() -> (u64, u64) {
     (offset, len)
 }
 
+pub async fn register_token(token: TokenId) -> Result<(), String> {
+    let metadata = icrc1::metadata(token)
+        .await
+        .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
+    mutate_with_invarant_check(
+        |state| state.list_token(token, metadata, ic_cdk::api::time()),
+        Some((token, 0)),
+    )
+}
+
 use crate::assets::{HttpRequest, HttpResponse};
+use crate::order_book::OrderExecution;
 export_candid!();

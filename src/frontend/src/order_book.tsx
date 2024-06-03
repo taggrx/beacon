@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Order, OrderType } from "./types";
 import { Principal } from "@dfinity/principal";
-import { Button, PAYMENT_TOKEN_ID, orderId, token, tokenBase } from "./common";
+import { Button, orderId, paymentTokenData, token, tokenBase } from "./common";
 
 const MAX_ORDERS = 10;
 
@@ -34,7 +34,7 @@ export const OrderBook = ({
 
     React.useEffect(() => {
         loadData();
-    }, [heartbeat]);
+    }, [heartbeat, tokenId]);
 
     const maxOrderSize = buyOrders
         .concat(sellOrders)
@@ -48,7 +48,7 @@ export const OrderBook = ({
     };
 
     const tokenData = window.tokenData[tokenId];
-    const paymentTokenDataData = window.tokenData[PAYMENT_TOKEN_ID];
+    const paymentToken = paymentTokenData();
 
     const userOrdersList = (orders: Order[], type: OrderType) =>
         orders.map((order) => (
@@ -76,10 +76,8 @@ export const OrderBook = ({
                     @
                 </td>
                 <td>
-                    <code>
-                        {token(order.price, paymentTokenDataData.decimals)}
-                    </code>{" "}
-                    {paymentTokenDataData.symbol}
+                    <code>{token(order.price, paymentToken.decimals)}</code>{" "}
+                    {paymentToken.symbol}
                 </td>
                 <td style={{ textAlign: "right" }}>
                     <Button
@@ -131,9 +129,9 @@ export const OrderBook = ({
                                                 tokenBase(tokenId),
                                         0,
                                     ),
-                                    paymentTokenDataData.decimals,
+                                    paymentToken.decimals,
                                 ).toLocaleString()}{" "}
-                                {paymentTokenDataData.symbol}
+                                {paymentToken.symbol}
                             </>
                         ) : (
                             <>
@@ -174,11 +172,8 @@ export const OrderBook = ({
                                     paddingRight: "0.5em",
                                 }}
                             >
-                                {token(
-                                    order.price,
-                                    window.tokenData[PAYMENT_TOKEN_ID].decimals,
-                                )}{" "}
-                                {window.tokenData[PAYMENT_TOKEN_ID].symbol}
+                                {token(order.price, paymentToken.decimals)}{" "}
+                                {paymentToken.symbol}
                             </div>
                             <div
                                 style={{

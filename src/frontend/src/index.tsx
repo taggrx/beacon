@@ -1,6 +1,6 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { Header } from "./header";
-import { Metadata } from "./types";
+import { Metadata, BackendData } from "./types";
 import { Landing } from "./landing";
 import { Logs } from "./logs";
 import { createRoot } from "react-dom/client";
@@ -8,7 +8,7 @@ import { Token } from "./token";
 import { ApiGenerator, Backend } from "./api";
 import { Principal } from "@dfinity/principal";
 import { Listing } from "./listing";
-import { PAYMENT_TOKEN_ID } from "./common";
+import { paymentTokenId } from "./common";
 
 const parseHash = (): string[] => {
     const parts = window.location.hash.replace("#", "").split("/");
@@ -16,24 +16,12 @@ const parseHash = (): string[] => {
     return parts.map(decodeURI);
 };
 
-type Data = {
-    e8s_per_xdr: bigint;
-    fee: bigint;
-    volume_day: bigint;
-    trades_day: number;
-    payment_token_locked: bigint;
-    cycle_balance: number;
-    heap_size: number;
-    tokens_listed: number;
-    active_traders: number;
-};
-
 declare global {
     interface Window {
         api: Backend;
         principalId: Principal;
         authClient: AuthClient;
-        data: Data;
+        data: BackendData;
         tokenData: { [key: string]: Metadata };
         internalBalances: {
             [key: string]: [bigint, bigint];
@@ -54,7 +42,7 @@ const App = () => {
         content = <Logs />;
     } else if (param == "list") {
         content = <Listing tokenId={param2} />;
-    } else if (typeof param == "string" && param != PAYMENT_TOKEN_ID) {
+    } else if (typeof param == "string" && param != paymentTokenId()) {
         content = <Token tokenId={param} />;
     }
     if (content)
@@ -80,7 +68,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         window.refreshBackendData = async () => {
             const [data, tokenData, internalBalances]: any = await Promise.all([
-                window.api.query<Data>("data"),
+                window.api.query<BackendData>("data"),
                 window.api.query<{ [key: string]: Metadata }>("tokens"),
                 window.api.query<{
                     [key: string]: [bigint, bigint];

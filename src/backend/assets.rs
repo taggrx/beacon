@@ -66,7 +66,11 @@ pub fn load() {
         include_bytes!("../../dist/frontend/apple-touch-icon.png").to_vec(),
     );
 
-    let mut domains = vec!["beacondex.link", "alpha.beacondex.link"];
+    let mut domains = vec![
+        "beacondex.link",
+        "srn4v-3aaaa-aaaar-qaftq-cai.icp.io",
+        "cetrr-jaaaa-aaaak-afgxq-cai.icp0.io",
+    ];
     let can_domain = format!("{}.icp0.io", ic_cdk::id());
     domains.push(&can_domain);
     add_asset(

@@ -3,7 +3,8 @@ import { Principal } from "@dfinity/principal";
 import { Order } from "./types";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
-export const PAYMENT_TOKEN_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const paymentTokenId = () => window.data.payment_token_id.toString();
+export const paymentTokenData = () => window.tokenData[paymentTokenId()];
 
 export const mainnetMode = process.env.NODE_ENV == "production";
 
@@ -135,7 +136,7 @@ export const ConnectButton = ({ large }: { large?: boolean }) => (
             fontSize: large ? "large" : undefined,
             background: "#4aa2a9",
             color: "#111111",
-            minWidth: large ? (bigScreen() ? "30%" : "100%") : undefined,
+            minWidth: large ? (bigScreen() ? "30%" : "50%") : undefined,
         }}
         onClick={() =>
             window.authClient.login({

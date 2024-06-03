@@ -1,17 +1,18 @@
+use crate::order_book::{Metadata, OrderExecution};
+use ic_cdk::api::time;
+
 use super::*;
 
 #[init]
 fn init() {
+    stable64_grow(1).expect("stable memory intialization failed");
     kickstart();
-    // register ICP as payment tokens
+    // register the payment tokens
     set_timer(Duration::from_millis(0), || {
         spawn(async {
             register_token(PAYMENT_TOKEN_ID)
                 .await
                 .expect("couldn't register payment token");
-            mutate(|state| {
-                state.tokens.get_mut(&PAYMENT_TOKEN_ID).expect("no payment token").logo = Some("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAMAAADW3miqAAAAqFBMVEUAAAAPBQYCDBDpHnj8sDruHXknpNopq+IEAgLyWiQnmsvsWCMQQVY5HQ1ZJYQcdZrbHXW6H3oIIzCxeSplLRCnFlnvnjRrJIAkgrG2Tx33hy+YIXskCB0efqdMHF55Dz70bShSnsQVNkaFJIASSmF8LhJkDDRKQ5kyZH6ePhjfUyHgeCt4GFs9Ej9MMXzLqlmBH1U/CiazbFayQ5GLYSG7r258STiDf1U4y9K8AAABVUlEQVQ4y+2SyZaCMBREEwgQw6jMowqKOE9t9///WecRBOzeurSWde6pNyL00XslGTnT1MiQBgt7sa7vYg8/jVmuaiDVnnUONWN9wrVYxKZwSqY9xQzBeLuJYBbJ3mtzWLTZnE5NBHHqCpg1xOy223ifJMmeZ0nNxrKKjPLGIkG1jL41KVRNksDFqARGtDezgTI8YNbCwm5AAg8VlhVmzymBYjfOeLSzzIAQF52ssKBoTC1vk3XvUJeQAFlheBxtLAfqGw/OFyGEQ9UIwpclpyLpDxSG1VCOzuU7ULb0Wq6oqjQbGEW5szElGj9WaXro5gVGrg3YanchzIPOJcKHNJ0eMticD8ycopXaXkjiFmceDU/N0imXf/EdRTBIUFrU/JzPjyVrM6+ccRxZ4TlOTf/dvBTNZT4wPMa/9t9jd9+T99+Da9+RHb/GL3+oqiwf/+FHb9EvACscm39NBowAAAAASUVORK5CYII=".into())
-            })
         })
     });
 }
@@ -32,6 +33,17 @@ fn set_revenue_account(new_address: Principal) {
     mutate(|state| {
         if state.revenue_account.is_none() || state.revenue_account == Some(caller()) {
             state.revenue_account = Some(new_address);
+        }
+    })
+}
+
+// Closing of all orders is needed in order to upgrade the fees or the payment token.
+// Additionally, it could help in an emergency situation.
+#[update]
+fn close_all_orders() {
+    mutate(|state| {
+        if state.revenue_account == Some(caller()) {
+            state.close_orders_by_condition(&|_| true, Default::default(), 10000);
         }
     })
 }
@@ -66,8 +78,7 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
         .checked_sub(fee)
         .unwrap_or_default();
 
-    // S3: check that `wallet_balance` doesn't exceed some upper bound such that
-    // there is no potential overflow of `i128`?
+    assert!(wallet_balance < i128::MAX as u128, "overflow");
 
     // if the balance is above 0, move everything from the wallet to BEACON
     if wallet_balance > 0 {
@@ -84,12 +95,10 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
             mutate(|state| state.log(error.clone()));
             error
         })?;
-        // S3: Potential loss of user funds if this fails.
-        // We need to somehow ensure that this cannot fail.
         mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, wallet_balance),
             Some((token, wallet_balance as i128)),
-        )?;
+        );
     }
     Ok(())
 }
@@ -98,24 +107,14 @@ async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
 async fn trade(
     token: TokenId,
     amount: u128,
-    // S4: `price` is implicitly optional: 0 means `None`. Maybe make it
-    // explicit for readability and safety.
     price: Tokens,
     order_type: OrderType,
-    // S4: replace `bool` with readable enum.
-) -> Vec<(u128, bool)> {
-    vec![mutate(|state| {
+) -> OrderExecution {
+    mutate(|state| {
         state
-            .trade(
-                order_type,
-                caller(),
-                token,
-                amount,
-                price,
-                ic_cdk::api::time(),
-            )
+            .trade(order_type, caller(), token, amount, price, time())
             .expect("trade failed")
-    })]
+    })
 }
 
 #[update]
@@ -123,17 +122,15 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
     let user = caller();
     let fee = read(|state| state.token(token))?.fee;
     let existing_balance = read(|state| state.token_pool_balance(token, user));
+    assert!(existing_balance < i128::MAX as u128, "overflow");
     if existing_balance <= fee {
         return Err("amount smaller than the fee".into());
     }
     let balance = mutate_with_invarant_check(
         |state| state.withdraw_liquidity(user, token),
-        // S3: check that `existing_balance` fits in `i128`.
         Some((token, -(existing_balance as i128))),
     )?;
-    // S3: assert that `balance` is equal to `existing_balance` so that
-    // subtraction below doesn't underflow.
-    let amount = balance - fee;
+    let amount = balance.checked_sub(fee).expect("underflow");
     icrc1::transfer(
         token,
         None,
@@ -148,15 +145,10 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
     .map_err(|err| {
         let error = format!("withdraw transfer failed: {}", err);
         mutate(|state| state.log(error.clone()));
-        // if the withdraw failed, restore liquidity
-        // S3: Potential loss of user funds if this fails.
-        // Need to ensure that this cannot fail.
-        if let Err(err) = mutate_with_invarant_check(
+        mutate_with_invarant_check(
             |state| state.add_liquidity(user, token, balance),
             Some((token, balance as i128)),
-        ) {
-            mutate(|state| state.log(format!("couldn't restore liquidity: {}", err)));
-        };
+        );
         error
     })
     .map(|_| amount)
@@ -165,11 +157,12 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
 #[update]
 async fn list_token(token: TokenId) -> Result<(), String> {
     let user = caller();
-    let listing_price = read(|state| state.e8s_per_xdr * 100);
 
-    // we subtract the fees twice, because the user moved the funds to BEACON internal account
+    // we subtract the fee twice, because the user moved the funds to BEACON internal account
     // first and now we need to move it to the payment pool again
-    let effective_amount = (ICP::from_e8s(listing_price) - DEFAULT_FEE - DEFAULT_FEE).e8s() as u128;
+    let Metadata { fee, decimals, .. } =
+        read(|state| state.token(PAYMENT_TOKEN_ID).expect("no payment token"));
+    let effective_amount = LISTING_PRICE_USD * 10_u128.pow(decimals) - fee - fee;
 
     if read(|state| state.payment_token_pool().get(&user) < Some(&effective_amount)) {
         return Err("not enough funds for listing".into());
@@ -187,11 +180,4 @@ async fn list_token(token: TokenId) -> Result<(), String> {
     });
 
     Ok(())
-}
-
-async fn register_token(token: TokenId) -> Result<(), String> {
-    let metadata = icrc1::metadata(token)
-        .await
-        .map_err(|err| format!("couldn't fetch metadata: {}", err))?;
-    mutate_with_invarant_check(|state| state.list_token(token, metadata), Some((token, 0)))
 }

@@ -176,12 +176,18 @@
             }
 
             .dbcell {
-                box-shadow: 0 0 5px #2a8289;
+                box-shadow: 0 0 8px orange;
+                background: orange;
                 padding: 0.5em;
                 display: flex;
                 flex-direction: column;
                 font-size: x-large;
                 text-align: center;
+            }
+            .dbcell code,
+            .dbcell span {
+                color: black;
+                font-weight: bold;
             }
 
             .dynamic_table {
@@ -255,10 +261,13 @@
                 margin-left: 0.5rem;
             }
 
-            .alert {
-                background: #bb0000;
-                padding: 1em;
-                border-radius: 10px;
+            .beta_label {
+                border: 1px solid orange;
+                color: orange;
+                padding: 0.2em;
+                padding-left: 0.5em;
+                padding-right: 0.5em;
+                border-radius: 5px;
             }
 
             .inactive {
@@ -271,9 +280,6 @@
             <div class="text_centered">
                 <h1 class="logo">BEACON</h1>
                 <h3><s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE</h3>
-                <h4 class="alert">
-                    ALPHA VERSION: DON'T USE WITH LARGE AMOUNTS!
-                </h4>
                 LOADING...
             </div>
         </div>
@@ -281,11 +287,14 @@
             <br />
             <br />
             <br />
-            <a href="https://beacondex.link">BeaconDex.link</a> &middot;
             <a
-                href="https://dashboard.internetcomputer.org/canister/cetrr-jaaaa-aaaak-afgxq-cai"
+                href="https://dashboard.internetcomputer.org/canister/srn4v-3aaaa-aaaar-qaftq-cai"
                 >IC dashboard</a
             >
+            &middot;
+            <a href="https://taggr.link/realm/BEACON">TAGGR</a>
+            &middot;
+            <a href="http://github.com/taggrx/beacon">GitHub</a>
             &middot; 2023
         </footer>
     </body>

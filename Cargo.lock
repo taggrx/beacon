@@ -55,7 +55,6 @@ dependencies = [
  "ic-cdk-macros",
  "ic-cdk-timers",
  "ic-certified-map",
- "ic-ledger-types",
  "serde",
  "serde_bytes",
  "serde_cbor",
@@ -517,21 +516,6 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "197524aecec47db0b6c0c9f8821aad47272c2bd762c7a0ffe9715eaca0364061"
 dependencies = [
- "serde",
- "serde_bytes",
- "sha2",
-]
-
-[[package]]
-name = "ic-ledger-types"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f018f5ed6f4a51618b58b415cbecc08dd79a357a2df2e2661be2aa5ffb86630"
-dependencies = [
- "candid",
- "crc32fast",
- "hex",
- "ic-cdk",
  "serde",
  "serde_bytes",
  "sha2",

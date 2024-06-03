@@ -1,5 +1,18 @@
 import { Principal } from "@dfinity/principal";
 
+export type BackendData = {
+    listing_price_usd: number;
+    fee: bigint;
+    volume_day: bigint;
+    trades_day: number;
+    payment_token_locked: bigint;
+    cycle_balance: number;
+    heap_size: number;
+    tokens_listed: number;
+    active_traders: number;
+    payment_token_id: Principal;
+};
+
 export type Result<T> =
     | {
           ["Ok"]: T;
@@ -33,3 +46,11 @@ export type Order = {
     decimals: number;
     executed: number;
 };
+
+export type OrderExecution =
+    | {
+          ["Filled"]: number;
+      }
+    | {
+          ["FilledAndOrderCreated"]: number;
+      };
