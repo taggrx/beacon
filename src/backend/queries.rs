@@ -84,7 +84,9 @@ fn data() {
             payment_token_locked: state
                 .funds_under_management()
                 .iter()
-                .find_map(|(id, balance)| (&PAYMENT_TOKEN_ID.to_string() == id).then_some(balance))
+                .find_map(|(id, balance)| {
+                    (&state.payment_token_id().to_string() == id).then_some(balance)
+                })
                 .copied()
                 .unwrap_or_default(),
             fee: TX_FEE,
@@ -94,7 +96,7 @@ fn data() {
             tokens_listed: state.tokens.len() - 1,
             active_traders: state.traders(),
             listing_price_usd: LISTING_PRICE_USD,
-            payment_token_id: PAYMENT_TOKEN_ID,
+            payment_token_id: state.payment_token_id(),
         }
     }))
 }

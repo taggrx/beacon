@@ -9,7 +9,7 @@ use candid::Principal;
 use ic_cdk::{api::call::reply_raw, caller, spawn};
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use order_book::{Order, OrderType, State, Timestamp, TokenId, Tokens, PAYMENT_TOKEN_ID, TX_FEE};
+use order_book::{Order, OrderType, State, Timestamp, TokenId, Tokens, TX_FEE};
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -93,9 +93,10 @@ fn kickstart() {
         mutate(heap_to_stable);
     });
     // weekly payment token metadata updates
-    set_timer(Duration::from_secs(24 * 60 * 60 * 7), || {
+    set_timer(Duration::from_secs(24 * 60 * 60 * 7), move || {
         spawn(async {
-            register_token(PAYMENT_TOKEN_ID)
+            let payment_token_id = read(|state| state.payment_token_id());
+            register_token(payment_token_id)
                 .await
                 .expect("couldn't update payment token metadata");
         })

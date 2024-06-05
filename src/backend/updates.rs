@@ -7,14 +7,6 @@ use super::*;
 fn init() {
     stable64_grow(1).expect("stable memory intialization failed");
     kickstart();
-    // register the payment tokens
-    set_timer(Duration::from_millis(0), || {
-        spawn(async {
-            register_token(PAYMENT_TOKEN_ID)
-                .await
-                .expect("couldn't register payment token");
-        })
-    });
 }
 
 #[pre_upgrade]
@@ -26,12 +18,24 @@ fn pre_upgrade() {
 fn post_upgrade() {
     stable_to_heap_core();
     kickstart();
+    read(|state| {
+        ic_cdk::println!(
+            "revenue_account={:?}, payment_token={}",
+            state.revenue_account.map(|id| id.to_string()),
+            state.payment_token_id().to_string()
+        )
+    });
 }
 
 #[update]
 fn set_revenue_account(new_address: Principal) {
     mutate(|state| {
         if state.revenue_account.is_none() || state.revenue_account == Some(caller()) {
+            ic_cdk::println!(
+                "changing the revenue account from {} to {}",
+                caller(),
+                new_address
+            );
             state.revenue_account = Some(new_address);
         }
     })
@@ -46,6 +50,27 @@ fn close_all_orders() {
             state.close_orders_by_condition(&|_| true, Default::default(), 10000);
         }
     })
+}
+
+// In case something happens to the payment token, we can always switch to a new one.
+#[update]
+async fn set_payment_token(token_id: Principal) {
+    if read(|state| state.revenue_account) != Some(caller()) {
+        return;
+    }
+
+    register_token(token_id)
+        .await
+        .expect("couldn't register payment token");
+
+    mutate(|state| {
+        state.close_orders_by_condition(&|_| true, Default::default(), usize::MAX);
+        // we need to reset the order archive because the decimals of the new payment token might
+        // be different, which will lead to distorted prices
+        state.order_archive.clear();
+        state.payment_token_id = Some(token_id);
+        state.log(format!("payment token changed to {}", token_id));
+    });
 }
 
 #[update]
@@ -160,8 +185,11 @@ async fn list_token(token: TokenId) -> Result<(), String> {
 
     // we subtract the fee twice, because the user moved the funds to BEACON internal account
     // first and now we need to move it to the payment pool again
-    let Metadata { fee, decimals, .. } =
-        read(|state| state.token(PAYMENT_TOKEN_ID).expect("no payment token"));
+    let Metadata { fee, decimals, .. } = read(|state| {
+        state
+            .token(state.payment_token_id())
+            .expect("no payment token")
+    });
     let effective_amount = LISTING_PRICE_USD * 10_u128.pow(decimals) - fee - fee;
 
     if read(|state| state.payment_token_pool().get(&user) < Some(&effective_amount)) {

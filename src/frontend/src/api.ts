@@ -40,6 +40,10 @@ export type Backend = {
 
     close_all_orders: () => Promise<void>;
 
+    set_revenue_account: (principal: string) => Promise<void>;
+
+    set_payment_token: (token_id: string) => Promise<void>;
+
     close_order: (
         tokenId: Principal,
         order_type: OrderType,
@@ -204,6 +208,34 @@ export const ApiGenerator = (
                     }),
                 ),
             );
+        },
+
+        set_payment_token: async (token_id: string): Promise<void> => {
+            const arg = IDL.encode(
+                [IDL.Principal],
+                [Principal.fromText(token_id)],
+            );
+            const response = await call_raw(
+                canisterId,
+                "set_payment_token",
+                arg,
+            );
+
+            decode(response);
+        },
+
+        set_revenue_account: async (principal: string): Promise<void> => {
+            const arg = IDL.encode(
+                [IDL.Principal],
+                [Principal.fromText(principal)],
+            );
+            const response = await call_raw(
+                canisterId,
+                "set_revenue_account",
+                arg,
+            );
+
+            decode(response);
         },
 
         close_all_orders: async (): Promise<void> => {

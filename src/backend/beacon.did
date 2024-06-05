@@ -25,6 +25,7 @@ service : () -> {
   http_request : (HttpRequest) -> (HttpResponse) query;
   list_token : (principal) -> (Result);
   orders : (principal, OrderType) -> (vec Order) query;
+  set_payment_token : (principal) -> ();
   set_revenue_account : (principal) -> ();
   stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
   trade : (principal, nat, nat, OrderType) -> (OrderExecution);
