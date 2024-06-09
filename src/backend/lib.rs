@@ -70,7 +70,7 @@ where
                 balances_after.retain(|(id, _)| id != &token_id.to_string());
             } else {
                 assert!(*balance < i128::MAX as u128);
-                assert!(*balance >= delta.unsigned_abs());
+                assert!(delta.unsigned_abs() < i128::MAX as u128);
                 *balance = (*balance as i128 - delta) as u128;
             }
         }
