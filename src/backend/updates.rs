@@ -85,7 +85,6 @@ async fn close_order(
         .expect("couldn't close order")
 }
 
-#[update]
 // This method deposits liquidity from user's subaccount into the token pools.
 //
 // It first checks, if there's any pending liquidity on users' subaccount. If yes, it moves the
@@ -93,13 +92,14 @@ async fn close_order(
 // share.
 //
 // If the balance is smaller than the fee, the function does nothing.
+#[update]
 async fn deposit_liquidity(token: TokenId) -> Result<(), String> {
     let user = caller();
     let user_account = icrc1::user_account(user);
     let fee = read(|state| state.token(token))?.fee;
     let wallet_balance = icrc1::balance_of(token, &user_account)
         .await?
-        // subtract fee becasue this funds will be moved to BEACON pool
+        // subtract fee because this funds will be moved to BEACON pool
         .checked_sub(fee)
         .unwrap_or_default();
 
@@ -196,7 +196,7 @@ async fn list_token(token: TokenId) -> Result<(), String> {
         return Err("not enough funds for listing".into());
     }
 
-    // if the token listing fails, we're fine becasue user has the deposit added to their
+    // if the token listing fails, we're fine because user has the deposit added to their
     // liquidity.
     register_token(token).await?;
 

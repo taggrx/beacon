@@ -145,11 +145,7 @@ export const Landing = ({}) => {
                     >
                         <div className="right_half_spaced vcentered">
                             {logo ? (
-                                <img
-                                    src={`${logo}`}
-                                    width="20px"
-                                    height="20px"
-                                />
+                                <img src={logo} width="20px" height="20px" />
                             ) : (
                                 <TokenLogo />
                             )}

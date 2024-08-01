@@ -115,8 +115,10 @@ pub fn heap_to_stable(state: &mut State) {
     let offset = 16; // start of the heap
     let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
     let len = bytes.len() as u64;
-    if offset + len > (stable64_size() << 16) {
-        stable64_grow((len >> 16) + 1).expect("couldn't grow memory");
+    let stable_mem_size_bytes = stable64_size() << 16;
+    let new_pages = (offset + len).saturating_sub(stable_mem_size_bytes) >> 16;
+    if new_pages > 0 {
+        stable64_grow(new_pages + 1).expect("couldn't grow memory");
     }
     stable64_write(offset, &bytes);
     stable64_write(0, &offset.to_be_bytes());

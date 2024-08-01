@@ -130,11 +130,7 @@ const BalanceLine = ({
                     <span className="row_container vcentered">
                         <div className="right_half_spaced vcentered">
                             {logo ? (
-                                <img
-                                    src={`${logo}`}
-                                    width="20px"
-                                    height="20px"
-                                />
+                                <img src={logo} width="20px" height="20px" />
                             ) : (
                                 <span style={{ width: "20px" }}>💎</span>
                             )}
