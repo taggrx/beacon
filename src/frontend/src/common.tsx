@@ -4,7 +4,11 @@ import { Order } from "./types";
 export const Error = ({ text }: { text: string }) => <h1>Error: {text}</h1>;
 
 export const paymentTokenId = () => window.data.payment_token_id.toString();
-export const paymentTokenData = () => window.tokenData[paymentTokenId()];
+export const paymentTokenData = () => {
+    const data = { ...window.tokenData[paymentTokenId()] };
+    if (data.symbol == "ckUSDC" || data.symbol == "ckUSDT") data.symbol = "USD";
+    return data;
+};
 
 export const mainnetMode = process.env.NODE_ENV == "production";
 

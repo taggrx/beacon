@@ -47,7 +47,7 @@ export const OrderBook = ({
         sell: sellOrders.filter(filter),
     };
 
-    const tokenData = window.tokenData[tokenId];
+    const { symbol, decimals } = window.tokenData[tokenId];
     const paymentToken = paymentTokenData();
 
     const userOrdersList = (orders: Order[], type: OrderType) =>
@@ -64,8 +64,7 @@ export const OrderBook = ({
                     {type.toString().toUpperCase()}
                 </td>
                 <td>
-                    <code>{token(order.amount, tokenData.decimals)}</code>{" "}
-                    {tokenData.symbol}
+                    <code>{token(order.amount, decimals)}</code> {symbol}
                 </td>
                 <td
                     style={{
@@ -140,9 +139,9 @@ export const OrderBook = ({
                                         (acc, order) => acc + order.amount,
                                         BigInt(0),
                                     ),
-                                    tokenData.decimals,
+                                    decimals,
                                 ).toLocaleString()}{" "}
-                                {tokenData.symbol}
+                                {symbol}
                             </>
                         )}
                     </h4>
@@ -196,10 +195,7 @@ export const OrderBook = ({
                                             : "#cc0000",
                                 }}
                             >
-                                {token(
-                                    order.amount,
-                                    window.tokenData[tokenId].decimals,
-                                )}
+                                {token(order.amount, decimals)}
                             </div>
                         </div>
                     ),

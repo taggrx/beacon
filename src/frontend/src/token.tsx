@@ -22,19 +22,18 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
         if (tokenId) loadData(tokenId);
     }, [tokenId]);
 
-    const metadata = window.tokenData[tokenId];
+    const tokenData = window.tokenData[tokenId];
 
-    if (!metadata) {
+    if (!tokenData) {
         return <Listing tokenId={tokenId} />;
     }
 
-    const { symbol, logo } = metadata;
+    const { symbol, decimals, logo } = tokenData;
     const callback = () => {
         window.refreshBackendData();
         setHeartbeat(new Date());
         loadData(tokenId);
     };
-    const tokenData = window.tokenData[tokenId];
     return (
         <>
             <div className="row_container vcentered x_large_text bottom_spaced">
@@ -117,12 +116,9 @@ export const Token = ({ tokenId }: { tokenId: string }) => {
                                     </td>
                                     <td>
                                         <code>
-                                            {token(
-                                                order.amount,
-                                                tokenData.decimals,
-                                            )}
+                                            {token(order.amount, decimals)}
                                         </code>{" "}
-                                        {tokenData.symbol}
+                                        {symbol}
                                     </td>
                                     <td
                                         style={{

@@ -91,7 +91,8 @@ export const Landing = ({}) => {
                 <div className="dbcell">
                     <span>24H VOLUME</span>
                     <code>
-                        ${token(volume_day, paymentToken.decimals, false)}{" "}
+                        {token(volume_day, paymentToken.decimals, false)}{" "}
+                        {paymentToken.symbol}
                     </code>
                 </div>
                 <div className="dbcell">
