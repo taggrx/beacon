@@ -1,4 +1,4 @@
-use ic_cdk::api::stable::{stable64_grow, stable64_read, stable64_size, stable64_write};
+use ic_cdk::api::stable::{stable_grow, stable_read, stable_size, stable_write};
 use icrc1::Account;
 use serde::Serialize;
 use std::cell::RefCell;
@@ -21,7 +21,8 @@ mod updates;
 
 const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 pub const LISTING_PRICE_USD: u128 = 100;
-pub const MINUTE: u64 = 60000000000_u64;
+pub const SECOND: u64 = 1_000_000_000_u64;
+pub const MINUTE: u64 = 60 * SECOND;
 pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 
@@ -52,7 +53,7 @@ where
 }
 
 // Mutates the state and checks one invariant: that any token liquidity was changed only
-// in line with the expected delta (or not changed at all, if delta is None.
+// in line with the expected delta (or not changed at all, if delta is None).
 fn mutate_with_invarant_check<F, R>(f: F, liquidity_delta: Option<(TokenId, i128)>) -> R
 where
     F: FnOnce(&mut State) -> R,
@@ -115,14 +116,14 @@ pub fn heap_to_stable(state: &mut State) {
     let offset = 16; // start of the heap
     let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
     let len = bytes.len() as u64;
-    let stable_mem_size_bytes = stable64_size() << 16;
+    let stable_mem_size_bytes = stable_size() << 16;
     let new_pages = (offset + len).saturating_sub(stable_mem_size_bytes) >> 16;
     if new_pages > 0 {
-        stable64_grow(new_pages + 1).expect("couldn't grow memory");
+        stable_grow(new_pages + 1).expect("couldn't grow memory");
     }
-    stable64_write(offset, &bytes);
-    stable64_write(0, &offset.to_be_bytes());
-    stable64_write(8, &len.to_be_bytes());
+    stable_write(offset, &bytes);
+    stable_write(0, &offset.to_be_bytes());
+    stable_write(8, &len.to_be_bytes());
 }
 
 fn stable_to_heap() -> State {
@@ -133,16 +134,16 @@ fn stable_to_heap() -> State {
     unsafe {
         bytes.set_len(len as usize);
     }
-    stable64_read(offset, &mut bytes);
+    stable_read(offset, &mut bytes);
     serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
 }
 
 fn heap_address() -> (u64, u64) {
     let mut offset_bytes: [u8; 8] = Default::default();
-    stable64_read(0, &mut offset_bytes);
+    stable_read(0, &mut offset_bytes);
     let offset = u64::from_be_bytes(offset_bytes);
     let mut len_bytes: [u8; 8] = Default::default();
-    stable64_read(8, &mut len_bytes);
+    stable_read(8, &mut len_bytes);
     let len = u64::from_be_bytes(len_bytes);
     (offset, len)
 }

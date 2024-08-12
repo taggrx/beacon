@@ -5,7 +5,7 @@ use super::*;
 
 #[init]
 fn init() {
-    stable64_grow(1).expect("stable memory intialization failed");
+    stable_grow(1).expect("stable memory intialization failed");
     kickstart();
 }
 
@@ -183,13 +183,13 @@ async fn withdraw(token: Principal) -> Result<u128, String> {
 async fn list_token(token: TokenId) -> Result<(), String> {
     let user = caller();
 
-    // we subtract the fee twice, because the user moved the funds to BEACON internal account
-    // first and now we need to move it to the payment pool again
     let Metadata { fee, decimals, .. } = read(|state| {
         state
             .token(state.payment_token_id())
             .expect("no payment token")
     });
+    // we subtract the fee twice, because the user moved the funds to BEACON internal account
+    // first and now we need to move it to the payment pool again
     let effective_amount = LISTING_PRICE_USD * 10_u128.pow(decimals) - fee - fee;
 
     if read(|state| state.payment_token_pool().get(&user) < Some(&effective_amount)) {

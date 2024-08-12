@@ -18,13 +18,13 @@ fn stable_mem_write(input: Vec<(u64, Vec<u8>)>) {
             return;
         }
         let offset = page * BACKUP_PAGE_SIZE as u64;
-        let current_size = api::stable::stable64_size();
+        let current_size = api::stable::stable_size();
         let needed_size = ((offset + buffer.len() as u64) >> 16) + 1;
         let delta = needed_size.saturating_sub(current_size);
         if delta > 0 {
-            api::stable::stable64_grow(delta).unwrap_or_else(|_| panic!("couldn't grow memory"));
+            api::stable::stable_grow(delta).unwrap_or_else(|_| panic!("couldn't grow memory"));
         }
-        api::stable::stable64_write(offset, buffer);
+        api::stable::stable_write(offset, buffer);
     }
 }
 

@@ -68,7 +68,7 @@ pub fn load() {
 
     let mut domains = vec![
         "beacondex.link",
-        "srn4v-3aaaa-aaaar-qaftq-cai.icp.io",
+        "srn4v-3aaaa-aaaar-qaftq-cai.icp0.io",
         "cetrr-jaaaa-aaaak-afgxq-cai.icp0.io",
     ];
     let can_domain = format!("{}.icp0.io", ic_cdk::id());

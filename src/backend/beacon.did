@@ -1,6 +1,6 @@
 type HttpRequest = record { url : text };
 type HttpResponse = record {
-  body : vec nat8;
+  body : blob;
   headers : vec record { text; text };
   status_code : nat16;
 };
@@ -25,9 +25,13 @@ service : () -> {
   http_request : (HttpRequest) -> (HttpResponse) query;
   list_token : (principal) -> (Result);
   orders : (principal, OrderType) -> (vec Order) query;
+  replace_canister_id : (principal, principal) -> ();
+  replace_user_id : (principal, principal) -> ();
   set_payment_token : (principal) -> ();
   set_revenue_account : (principal) -> ();
-  stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
+  stable_mem_read : (nat64) -> (vec record { nat64; blob }) query;
+  stable_mem_write : (vec record { nat64; blob }) -> ();
+  stable_to_heap : () -> ();
   trade : (principal, nat, nat, OrderType) -> (OrderExecution);
   withdraw : (principal) -> (Result_1);
 }

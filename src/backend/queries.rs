@@ -115,6 +115,6 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Vec<u8>)> {
     unsafe {
         buf.set_len(chunk_size);
     }
-    ic_cdk::api::stable::stable64_read(offset, &mut buf);
+    ic_cdk::api::stable::stable_read(offset, &mut buf);
     vec![(page, buf)]
 }
