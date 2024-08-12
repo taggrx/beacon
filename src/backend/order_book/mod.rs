@@ -411,6 +411,7 @@ impl State {
     /// Returns open orders sorted by "the best price" for the order type.
     /// - Buy: the highest price first
     /// - Sell: the lowest price first
+    ///
     /// Note: used in a query and tests only.
     pub fn orders(
         &self,
