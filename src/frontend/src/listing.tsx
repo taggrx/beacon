@@ -4,7 +4,6 @@ import {
     Button,
     CopyToClipboard,
     depositFromWallet,
-    paymentTokenData,
     paymentTokenId,
     token,
     tokenBase,
@@ -15,7 +14,7 @@ export const Listing = ({ tokenId }: { tokenId: string }) => {
     const amount = BigInt(
         window.data.listing_price_usd * tokenBase(paymentTokenId()),
     );
-    const { symbol, decimals } = paymentTokenData();
+    const { symbol, decimals } = window.tokenData[paymentTokenId()];
     const price = (
         <code>
             {token(amount, decimals)} {symbol}
