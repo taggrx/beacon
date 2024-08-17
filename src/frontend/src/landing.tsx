@@ -48,10 +48,10 @@ export const Landing = ({}) => {
         <div>
             <div className="text_centered">
                 <h1 className="logo">BEACON</h1>
-                <h3>
-                    <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
-                </h3>
-                <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">ALPHA</a>{" "}
+                <h3>IMMUTABLE ORDER-BOOK BASED EXCHANGE</h3>
+                <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">
+                    ALPHA
+                </a>{" "}
                 &middot;{" "}
                 <span
                     className="clickable beta_label"
