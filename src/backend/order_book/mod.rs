@@ -15,6 +15,8 @@ pub type ParticlesPerToken = u128;
 
 pub const TX_FEE: u128 = 20; // 0.XX% per trade side
 
+const LOGS_SIZE: usize = 10_000;
+
 const ORDER_EXPIRATION_DAYS: u64 = 90;
 
 // This is a cycle drain protection.
@@ -240,11 +242,8 @@ impl State {
 
     pub fn clean_up(&mut self, now: Timestamp) {
         // Rotate logs
-        let mut deleted_logs = 0;
-        while self.logs.len() > 10000 {
-            self.logs.pop_back();
-            deleted_logs += 1;
-        }
+        let deleted_logs = self.logs.len().saturating_sub(LOGS_SIZE);
+        self.logs.truncate(LOGS_SIZE);
 
         // Remove all archived orders older than 3 months
         let mut deleted_archived_orders = 0;

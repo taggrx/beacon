@@ -90,7 +90,7 @@ fn kickstart() {
     set_timer_interval(Duration::from_secs(24 * 60 * 60), || {
         mutate(|state| state.clean_up(ic_cdk::api::time()));
     });
-    set_timer_interval(Duration::from_secs(60 * 60), || {
+    set_timer_interval(Duration::from_secs(24 * 60 * 60), || {
         mutate(heap_to_stable);
     });
     // weekly payment token metadata updates
