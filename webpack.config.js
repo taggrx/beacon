@@ -78,7 +78,7 @@ module.exports = {
         rules: [
             // { test: /\.css$/, use: ['style-loader','css-loader'] },
             { test: /\.(ts|tsx|jsx)$/, loader: "ts-loader" },
-            { test: /\.(md|css|svg)/i, use: "raw-loader" },
+            { test: /\.(md)/i, use: "raw-loader" },
         ],
     },
     plugins: [

@@ -10,6 +10,8 @@ import {
 import * as React from "react";
 import { Wallet } from "./wallet";
 import { Metadata, Order } from "./types";
+// @ts-ignore
+import readme from "../../../README.md";
 
 export const Landing = ({}) => {
     const [orders, setOrders] = React.useState<{ [name: string]: Order }>({});
@@ -45,7 +47,7 @@ export const Landing = ({}) => {
     };
 
     return (
-        <div>
+        <>
             <div className="text_centered">
                 <h1 className="logo">BEACON</h1>
                 <h3>IMMUTABLE ORDER-BOOK BASED EXCHANGE</h3>
@@ -193,7 +195,120 @@ export const Landing = ({}) => {
                         LIST YOUR TOKEN NOW!
                     </button>
                 </div>
+                <br />
+                <br />
+                <br />
+                <hr className="top_spaced bottom_spaced" />
+                <br />
+                <br />
+                <div className="README bottom_spaced">
+                    {renderMarkdown(readme)}
+                </div>
             </div>
-        </div>
+        </>
     );
 };
+
+function renderMarkdown(markdown: string): React.ReactNode[] {
+    const lines = markdown.split("\n");
+    const reactNodes: React.ReactNode[] = [];
+
+    let listItems: React.ReactNode[] = [];
+    let isOrderedList = false;
+
+    lines.forEach((line) => {
+        // Convert headers
+        if (/^(#{1,6})\s+(.*)$/.test(line)) {
+            const matches = line.match(/^(#{1,6})\s+(.*)$/);
+            if (matches) {
+                const level = matches[1].length;
+                const content = matches[2];
+                reactNodes.push(
+                    React.createElement(
+                        `h${level}`,
+                        { key: reactNodes.length },
+                        content,
+                    ),
+                );
+            }
+            return;
+        }
+
+        // Convert ordered lists
+        if (/^\d+\.\s+(.*)$/.test(line)) {
+            const content = line.replace(/^\d+\.\s+/, "");
+            listItems.push(<li key={listItems.length}>{content}</li>);
+            isOrderedList = true;
+            return;
+        }
+
+        // Convert unordered lists
+        if (/^\-\s+(.*)$/.test(line)) {
+            const content = line.replace(/^\-\s+/, "");
+            listItems.push(<li key={listItems.length}>{content}</li>);
+            isOrderedList = false;
+            return;
+        }
+
+        // Handle the end of a list
+        if (
+            listItems.length > 0 &&
+            !/^\d+\.\s+/.test(line) &&
+            !/^\*\s+/.test(line)
+        ) {
+            const ListTag = isOrderedList ? "ol" : "ul";
+            reactNodes.push(
+                <ListTag key={reactNodes.length}>{listItems}</ListTag>,
+            );
+            listItems = [];
+        }
+
+        // Convert bold and italics
+        if (/\*\*(.*?)\*\*/.test(line)) {
+            line = line.replace(
+                /\*\*(.*?)\*\*/g,
+                (_, content) => `<strong>${content}</strong>`,
+            );
+        }
+        if (/\*(.*?)\*/.test(line)) {
+            line = line.replace(
+                /\*(.*?)\*/g,
+                (_, content) => `<em>${content}</em>`,
+            );
+        }
+
+        // Convert inline code
+        if (/`([^`]+)`/.test(line)) {
+            line = line.replace(
+                /`([^`]+)`/g,
+                (_, content) => `<code>${content}</code>`,
+            );
+        }
+
+        // Convert links
+        if (/\[([^\]]+)\]\(([^)]+)\)/.test(line)) {
+            line = line.replace(
+                /\[([^\]]+)\]\(([^)]+)\)/g,
+                (_, text, url) => `<a href="${url}">${text}</a>`,
+            );
+        }
+
+        // Push other lines as <p> elements
+        if (line.trim()) {
+            reactNodes.push(
+                <p
+                    key={reactNodes.length}
+                    dangerouslySetInnerHTML={{ __html: line }}
+                />,
+            );
+        }
+    });
+
+    // Handle any remaining list items
+    if (listItems.length > 0) {
+        const ListTag = isOrderedList ? "ol" : "ul";
+        reactNodes.push(<ListTag key={reactNodes.length}>{listItems}</ListTag>);
+    }
+
+    return reactNodes;
+}
