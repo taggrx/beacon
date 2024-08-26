@@ -28,6 +28,11 @@ release:
 	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release beacon
 	make hashes
 
+podman_release:
+	podman build -t beacon .
+	podman run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release beacon
+	make hashes
+
 hashes:
 	git rev-parse HEAD
 	shasum -a 256 ./release-artifacts/beacon.wasm.gz  | cut -d ' ' -f 1
