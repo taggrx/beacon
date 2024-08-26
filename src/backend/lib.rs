@@ -37,7 +37,6 @@ where
     STATE.with(|cell| f(&cell.borrow()))
 }
 
-#[cfg(any(test, feature = "dev"))]
 fn unsafe_mutate<F, R>(f: F) -> R
 where
     F: FnOnce(&mut State) -> R,
@@ -88,7 +87,7 @@ fn reply<T: serde::Serialize>(data: T) {
 fn kickstart() {
     assets::load();
     set_timer_interval(Duration::from_secs(24 * 60 * 60), || {
-        mutate(|state| state.clean_up(ic_cdk::api::time()));
+        unsafe_mutate(|state| state.clean_up(ic_cdk::api::time()));
     });
     set_timer_interval(Duration::from_secs(24 * 60 * 60), || {
         mutate(heap_to_stable);
