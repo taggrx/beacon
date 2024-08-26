@@ -289,8 +289,11 @@ impl State {
             {
                 self.tokens.remove(&token_id);
                 self.pools.remove(&token_id);
+                self.log(format!("token {} was delisted due to no demand", token_id));
             }
         }
+
+        self.log(format!("clean-up routine ran at time {}", now));
     }
 
     /// Returns all users that have open orders.
