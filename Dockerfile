@@ -45,3 +45,5 @@ COPY . .
 
 # Build
 RUN make build
+
+ENTRYPOINT [ "./release.sh" ]
