@@ -11,9 +11,9 @@ crate-type = ["cdylib"]
 base64 = "0.21.5"
 candid = { version = "0.10.10" }
 hex = "0.4.3"
-ic-cdk = "0.15.0"
-ic-cdk-macros = "0.15.0"
-ic-cdk-timers = "0.9.0"
+ic-cdk = "0.16.0"
+ic-cdk-macros = "0.16.0"
+ic-cdk-timers = "0.10.0"
 ic-certified-map = "0.4.0"
 serde = { version = "1.0.192", features = ["derive"] }
 serde_bytes = "0.11.15"
