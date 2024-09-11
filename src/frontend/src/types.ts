@@ -31,6 +31,7 @@ export type Metadata = {
     fee: bigint;
     decimals: number;
     logo: string;
+    timestamp: number;
 };
 
 export enum OrderType {

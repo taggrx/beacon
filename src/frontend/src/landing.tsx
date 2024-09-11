@@ -14,6 +14,7 @@ import { Metadata, Order } from "./types";
 import readme from "../../../README.md";
 
 const immutabilityDate = new Date("2024-10-01");
+const maxTokensShown = 10;
 
 export const Landing = ({}) => {
     const [orders, setOrders] = React.useState<{ [name: string]: Order }>({});
@@ -24,7 +25,7 @@ export const Landing = ({}) => {
             "prices",
         );
         if (orders) setOrders(orders);
-        setShortenList(Object.keys(window.tokenData).length > 5);
+        setShortenList(Object.keys(window.tokenData).length > maxTokensShown);
     };
 
     React.useEffect(() => {
@@ -42,10 +43,14 @@ export const Landing = ({}) => {
         active_traders,
     } = window.data;
 
-    const timestamp = (id: string) => (id in orders ? orders[id].timestamp : 0);
+    const timestamp = (id: string, md: Metadata) =>
+        id in orders ? 10 * orders[id].timestamp : md.timestamp;
     const tokenList = (inputs: [string, Metadata][]) => {
-        inputs.sort(([id1], [id2]) => timestamp(id2) - timestamp(id1));
-        return shortenList ? inputs.slice(0, 5) : inputs;
+        inputs.sort(
+            ([id1, md1], [id2, md2]) =>
+                timestamp(id2, md2) - timestamp(id1, md1),
+        );
+        return shortenList ? inputs.slice(0, maxTokensShown) : inputs;
     };
 
     return (
