@@ -276,7 +276,7 @@ impl State {
             // the last order was created more than `2 x ORDER_EXPIRATION_DAYS` ago
             self
                 .token(token_id)
-                .map(|data| data.timestamp + 2 * ORDER_EXPIRATION_DAYS < now)
+                .map(|data| data.timestamp + 2 * ORDER_EXPIRATION_DAYS * DAY < now)
                 .unwrap_or(true)
                 // there are no buy or sell orders
                 && self
