@@ -13,6 +13,8 @@ import { Metadata, Order } from "./types";
 // @ts-ignore
 import readme from "../../../README.md";
 
+const immutabilityDate = new Date("2024-10-01");
+
 export const Landing = ({}) => {
     const [orders, setOrders] = React.useState<{ [name: string]: Order }>({});
     const [shortenList, setShortenList] = React.useState(false);
@@ -51,7 +53,12 @@ export const Landing = ({}) => {
             <div className="text_centered">
                 <h1 className="logo">BEACON</h1>
                 <h3>
-                    <s>IMMUTABLE</s> ORDER-BOOK BASED EXCHANGE
+                    {new Date() > immutabilityDate ? (
+                        <>IMMUTABLE</>
+                    ) : (
+                        <s>IMMUTABLE</s>
+                    )}{" "}
+                    ORDER-BOOK BASED EXCHANGE
                 </h3>
                 <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">ALPHA</a>{" "}
                 &middot;{" "}
