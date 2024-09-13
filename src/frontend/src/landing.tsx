@@ -65,16 +65,16 @@ export const Landing = ({}) => {
                     )}{" "}
                     ORDER-BOOK BASED EXCHANGE
                 </h3>
-                <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">ALPHA</a>{" "}
+                <a href="https://cetrr-jaaaa-aaaak-afgxq-cai.icp0.io">V0</a>{" "}
                 &middot;{" "}
                 <span
-                    className="clickable beta_label"
+                    className="clickable version_label"
                     onClick={() =>
                         (location.href =
                             "https://srn4v-3aaaa-aaaar-qaftq-cai.icp0.io")
                     }
                 >
-                    BETA
+                    V1
                 </span>
             </div>
             <br />
